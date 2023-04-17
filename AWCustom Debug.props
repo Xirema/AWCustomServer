@@ -1,20 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets">
-    <Import Project="..\..\Library\global_properties\C++17 Config.props" />
-    <Import Project="..\..\Library\global_properties\WorkspaceId.props" />
-    <Import Project="..\..\Library\global_properties\Includes.props" />
-    <Import Project="..\..\Library\global_properties\Library Directory.props" />
-    <Import Project="..\..\Library\global_properties\Boost Static Libraries.props" />
-    <Import Project="..\..\Library\global_properties\OpenSSL Static Library.props" />
-    <Import Project="..\..\Library\global_properties\FreeImage Static Library Debug.props" />
-    <Import Project="..\..\Library\global_properties\Zlib Static Library Debug.props" />
-    <Import Project="..\..\Library\global_properties\Executable Output.props" />
+    <Import Project="Library\Properties\BaseConfig.props" />
+    <Import Project="Library\Properties\Libraries.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_PropertySheetDisplayName>AWCustom Debug</_PropertySheetDisplayName>
   </PropertyGroup>
-  <ItemDefinitionGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup />
 </Project>
