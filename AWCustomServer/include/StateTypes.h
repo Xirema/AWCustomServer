@@ -6,20 +6,20 @@
 namespace statetypes {
     namespace json = boost::json;
     struct GameState {
-        int64_t id;
+        std::string id;
         int64_t day;
         int64_t playerTurn;
-        std::vector<int64_t> playerOrder;
+        std::vector<std::string> playerOrder;
         std::string variant;
         bool active;
 
         void readFrom(json::object const& obj) {
             if (auto ptr = obj.if_contains("id")) {
-                if (auto tPtr = ptr->if_int64()) {
+                if (auto tPtr = ptr->if_string()) {
                     id = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'id' as int64_t in GameState, but was of wrong type.");
+                    throw std::exception("Expected 'id' as std::string in GameState, but was of wrong type.");
                 }
             }
             else {
@@ -49,13 +49,13 @@ namespace statetypes {
             }
             if (auto ptr = obj.if_contains("playerOrder")) {
                 if (auto tPtr = ptr->if_array()) {
-                    std::vector<int64_t> arr;
+                    std::vector<std::string> arr;
                     for (auto const& val : *tPtr) {
-                        if (auto vPtr = val.if_int64()) {
-                            arr.push_back(int64_t{ *vPtr });
+                        if (auto vPtr = val.if_string()) {
+                            arr.push_back(std::string{ *vPtr });
                         }
                         else {
-                            throw std::exception("Item in array 'playerOrder' in GameState was expected to be int64, but was of wrong type.");
+                            throw std::exception("Item in array 'playerOrder' in GameState was expected to be string, but was of wrong type.");
                         }
                     }
                     playerOrder = std::move(arr);
@@ -98,7 +98,7 @@ namespace statetypes {
             {
                 json::array arr;
                 for (auto const& val : playerOrder) {
-                    arr.push_back(int64_t{ val });
+                    arr.push_back(json::string{ val });
                 }
                 obj["playerOrder"] = std::move(arr);
             }
@@ -107,14 +107,16 @@ namespace statetypes {
         }
     };
     struct PlayerState {
-        int64_t id;
-        int64_t owner;
+        std::string id;
+        std::string owner;
         std::string commanderName;
         int64_t funds;
         int64_t powerCharge;
         std::string armyColor;
         bool alive;
         int64_t totalPowerUses;
+        int64_t unitFacing;
+        std::string playerType;
         std::optional<std::string> team;
         std::optional<std::string> powerActive;
         std::optional<int64_t> powerActiveDay;
@@ -124,22 +126,22 @@ namespace statetypes {
 
         void readFrom(json::object const& obj) {
             if (auto ptr = obj.if_contains("id")) {
-                if (auto tPtr = ptr->if_int64()) {
+                if (auto tPtr = ptr->if_string()) {
                     id = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'id' as int64_t in PlayerState, but was of wrong type.");
+                    throw std::exception("Expected 'id' as std::string in PlayerState, but was of wrong type.");
                 }
             }
             else {
                 throw std::exception("'id' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("owner")) {
-                if (auto tPtr = ptr->if_int64()) {
+                if (auto tPtr = ptr->if_string()) {
                     owner = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'owner' as int64_t in PlayerState, but was of wrong type.");
+                    throw std::exception("Expected 'owner' as std::string in PlayerState, but was of wrong type.");
                 }
             }
             else {
@@ -211,6 +213,28 @@ namespace statetypes {
             else {
                 throw std::exception("'totalPowerUses' was missing in PlayerState");
             }
+            if (auto ptr = obj.if_contains("unitFacing")) {
+                if (auto tPtr = ptr->if_int64()) {
+                    unitFacing = *tPtr;
+                }
+                else {
+                    throw std::exception("Expected 'unitFacing' as int64_t in PlayerState, but was of wrong type.");
+                }
+            }
+            else {
+                throw std::exception("'unitFacing' was missing in PlayerState");
+            }
+            if (auto ptr = obj.if_contains("playerType")) {
+                if (auto tPtr = ptr->if_string()) {
+                    playerType = *tPtr;
+                }
+                else {
+                    throw std::exception("Expected 'playerType' as std::string in PlayerState, but was of wrong type.");
+                }
+            }
+            else {
+                throw std::exception("'playerType' was missing in PlayerState");
+            }
             if (auto ptr = obj.if_contains("team")) {
                 if (auto tPtr = ptr->if_string()) {
                     team = *tPtr;
@@ -279,6 +303,8 @@ namespace statetypes {
             obj["armyColor"] = armyColor;
             obj["alive"] = alive;
             obj["totalPowerUses"] = totalPowerUses;
+            obj["unitFacing"] = unitFacing;
+            obj["playerType"] = playerType;
             if (team) {
                 obj["team"] = *team;
             }
@@ -304,14 +330,14 @@ namespace statetypes {
         }
     };
     struct SettingsState {
-        int64_t id;
+        std::string id;
         int64_t startingFunds;
         int64_t incomeMultiplier;
         bool fogOfWar;
         std::map<std::string, int64_t> variant;
         bool coPowers;
         bool teams;
-        int64_t modId;
+        std::string modId;
         int64_t coMeterSize;
         int64_t coMeterMultiplier;
         std::optional<int64_t> unitLimit;
@@ -320,11 +346,11 @@ namespace statetypes {
 
         void readFrom(json::object const& obj) {
             if (auto ptr = obj.if_contains("id")) {
-                if (auto tPtr = ptr->if_int64()) {
+                if (auto tPtr = ptr->if_string()) {
                     id = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'id' as int64_t in SettingsState, but was of wrong type.");
+                    throw std::exception("Expected 'id' as std::string in SettingsState, but was of wrong type.");
                 }
             }
             else {
@@ -406,11 +432,11 @@ namespace statetypes {
                 throw std::exception("'teams' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("modId")) {
-                if (auto tPtr = ptr->if_int64()) {
+                if (auto tPtr = ptr->if_string()) {
                     modId = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'modId' as int64_t in SettingsState, but was of wrong type.");
+                    throw std::exception("Expected 'modId' as std::string in SettingsState, but was of wrong type.");
                 }
             }
             else {
@@ -493,7 +519,7 @@ namespace statetypes {
         }
     };
     struct TerrainState {
-        int64_t id;
+        std::string id;
         int64_t x;
         int64_t y;
         std::string name;
@@ -505,11 +531,11 @@ namespace statetypes {
 
         void readFrom(json::object const& obj) {
             if (auto ptr = obj.if_contains("id")) {
-                if (auto tPtr = ptr->if_int64()) {
+                if (auto tPtr = ptr->if_string()) {
                     id = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'id' as int64_t in TerrainState, but was of wrong type.");
+                    throw std::exception("Expected 'id' as std::string in TerrainState, but was of wrong type.");
                 }
             }
             else {
@@ -613,7 +639,7 @@ namespace statetypes {
         }
     };
     struct UnitState {
-        int64_t id;
+        std::string id;
         int64_t x;
         int64_t y;
         std::string name;
@@ -621,19 +647,19 @@ namespace statetypes {
         int64_t fuel;
         bool active;
         std::optional<int64_t> stunned;
-        std::optional<std::vector<int64_t>> transporting;
-        std::optional<int64_t> owner;
+        std::optional<std::vector<std::string>> transporting;
+        std::optional<std::string> owner;
         std::optional<int64_t> hitPoints;
         std::optional<int64_t> realHitPoints;
         std::optional<bool> stealthed;
 
         void readFrom(json::object const& obj) {
             if (auto ptr = obj.if_contains("id")) {
-                if (auto tPtr = ptr->if_int64()) {
+                if (auto tPtr = ptr->if_string()) {
                     id = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'id' as int64_t in UnitState, but was of wrong type.");
+                    throw std::exception("Expected 'id' as std::string in UnitState, but was of wrong type.");
                 }
             }
             else {
@@ -715,13 +741,13 @@ namespace statetypes {
             }
             if (auto ptr = obj.if_contains("transporting")) {
                 if (auto tPtr = ptr->if_array()) {
-                    std::vector<int64_t> arr;
+                    std::vector<std::string> arr;
                     for (auto const& val : *tPtr) {
-                        if (auto vPtr = val.if_int64()) {
-                            arr.push_back(int64_t{ *vPtr });
+                        if (auto vPtr = val.if_string()) {
+                            arr.push_back(std::string{ *vPtr });
                         }
                         else {
-                            throw std::exception("Item in array 'transporting' in UnitState was expected to be int64, but was of wrong type.");
+                            throw std::exception("Item in array 'transporting' in UnitState was expected to be string, but was of wrong type.");
                         }
                     }
                     transporting = std::move(arr);
@@ -731,11 +757,11 @@ namespace statetypes {
                 }
             }
             if (auto ptr = obj.if_contains("owner")) {
-                if (auto tPtr = ptr->if_int64()) {
+                if (auto tPtr = ptr->if_string()) {
                     owner = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'owner' as int64_t in UnitState, but was of wrong type.");
+                    throw std::exception("Expected 'owner' as std::string in UnitState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("hitPoints")) {
@@ -778,7 +804,7 @@ namespace statetypes {
             if (transporting) {
                 json::array arr;
                 for (auto const& val : *transporting) {
-                    arr.push_back(int64_t{ val });
+                    arr.push_back(json::string{ val });
                 }
                 obj["transporting"] = std::move(arr);
             }

@@ -1,5 +1,6 @@
 #include<RestFunctions.h>
 #include<StateTypes.h>
+#include<random>
 
 namespace {
 	std::string error_guard(net::POSTFunc func, net::HTTPHeaders const& headers, std::string body) {
@@ -43,8 +44,8 @@ namespace {
 		statetypes::GameState gameState;
 		gameState.active = true;
 		gameState.day = 1;
-		gameState.id = -1;
-		gameState.playerOrder = { 1,2 };
+		gameState.id = "-1";
+		gameState.playerOrder = { "1","2" };
 		gameState.playerTurn = 0;
 		gameState.variant = "normal";
 		boost::json::object obj;
@@ -61,27 +62,30 @@ namespace {
 		auto& player1 = playerStates.emplace_back();
 		player1.alive = true;
 		player1.armyColor = "os";
-		player1.commanderName = "andy";
-		player1.id = 9999;
-		player1.owner = 1;
+		player1.commanderName = "max";
+		player1.id = "9999";
+		player1.owner = "1";
 		player1.funds = 10000;
-		player1.powerCharge = 27000;
-		player1.totalPowerUses = 0;
+		player1.powerCharge = 0;
+		player1.totalPowerUses = 1;
+		player1.powerActive = "scop";
+		player1.playerType = "normal";
 		auto& player2 = playerStates.emplace_back();
 		player2.alive = true;
 		player2.armyColor = "bm";
-		player2.commanderName = "olaf";
-		player2.id = 10000;
-		player2.owner = 2;
+		player2.commanderName = "sturm";
+		player2.id = "10000";
+		player2.owner = "2";
 		player2.funds = 15000;
 		player2.powerCharge = 63000;
 		player2.totalPowerUses = 0;
+		player2.playerType = "normal";
 
 		boost::json::array arr;
 		for (auto const& player : playerStates) {
 			boost::json::object obj;
 			player.writeTo(obj);
-			if (player.owner == 2)
+			if (player.owner == "2")
 				obj["unitFacing"] = 1;
 			arr.push_back(std::move(obj));
 		}
@@ -104,7 +108,7 @@ namespace {
 			unit.name = "infantry";
 			unit.fuel = 99;
 			unit.hitPoints = 100;
-			unit.owner = 9999;
+			unit.owner = "9999";
 			if (unit.y == 3) {
 				unit.name = "fighter";
 			}
@@ -122,7 +126,7 @@ namespace {
 			unit.name = "infantry";
 			unit.fuel = 99;
 			unit.hitPoints = 100;
-			unit.owner = 10000;
+			unit.owner = "10000";
 		}
 
 		boost::json::array arr;
@@ -141,6 +145,8 @@ namespace {
 		}
 		std::vector<statetypes::TerrainState> terrainStates;
 		int nextId = 0;
+		std::minstd_rand engine{ static_cast<uint32_t>(nextId + 55) };
+		std::uniform_int_distribution<uint32_t> dist{ 0, 6 };
 		for (int i = 0; i < 50; i++) {
 			for (int j = 0; j < 50; j++) {
 				auto& terrain = terrainStates.emplace_back();
@@ -150,6 +156,9 @@ namespace {
 				terrain.y = j;
 				if (((terrain.y * 2) % 5) == (terrain.x % 5)) {
 					terrain.name = "mountain";
+				}
+				if (terrain.name == "plains") {
+					terrain.orientation = dist(engine);
 				}
 			}
 		}
@@ -178,7 +187,7 @@ namespace {
 		settingState.coMeterMultiplier = 100;
 		settingState.coMeterSize = 9000;
 		settingState.coPowers = true;
-		settingState.modId = 39;
+		settingState.modId = "49";
 		boost::json::object obj;
 		settingState.writeTo(obj);
 		return boost::json::serialize(obj);

@@ -259,6 +259,7 @@ namespace {
 		set(unit.captureSpeed, row[14]);
 		set(unit.ignoresVisionOcclusion, row[15]);
 		set(unit.stealthType, row[16]);
+		set(unit.stationaryFire, row[17]);
 	}
 
 	void assignUnitWeaponData(mysql::row_view const& row, datatypes::UnitType& unit) {
@@ -1560,7 +1561,7 @@ namespace {
 		if (auto name = json.if_contains("army")) {
 			army.emplace(name->as_string().c_str());
 		}
-		std::map<std::tuple<std::string, std::string, std::optional<std::string>>, datatypes::ImageResource> resources;
+		std::map<std::tuple<std::string, std::string, std::optional<std::string>, std::optional<int64_t>>, datatypes::ImageResource> resources;
 
 		std::string sql = R"SQL(
 			select
@@ -1616,22 +1617,25 @@ namespace {
 		for (auto const& row : results) {
 			std::string key, type;
 			std::optional<std::string> armyColor;
+			std::optional<int64_t> orientation;
 
 			set(key, row[2]);
 			set(type, row[3]);
 			set(armyColor, row[4]);
-			auto it = resources.find(std::make_tuple(key, type, armyColor));
+			set(orientation, row[7]);
+			auto it = resources.find(std::make_tuple(key, type, armyColor, orientation));
 			datatypes::ImageResource* ptr;
 			if (it != resources.end()) {
 				ptr = &it->second;
 			}
 			else {
-				ptr = &resources[std::make_tuple(key, type, armyColor)];
+				ptr = &resources[std::make_tuple(key, type, armyColor, orientation)];
 			}
 			auto& newResource = *ptr;
 			newResource.key = key;
 			newResource.type = type;
 			newResource.armyColor = armyColor;
+			newResource.orientation = orientation;
 
 			std::optional<std::string> smallImagePart, largeImagePart;
 			set(smallImagePart, row[5]);
@@ -1640,7 +1644,6 @@ namespace {
 				newResource.smallImage += *smallImagePart;
 			if (largeImagePart)
 				newResource.largeImage += *largeImagePart;
-			set(newResource.orientation, row[7]);
 			set(newResource.variant, row[8]);
 		}
 		boost::json::array ret;

@@ -3,7 +3,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>$(SolutionDir)Build\$(Configuration)</OutDir>
+    <OutDir>$(SolutionDir)Build\$(Configuration)\</OutDir>
     <IncludePath>G:\AWCustom\AWCustomServer\Library\include;$(ProjectDir)Include;$(IncludePath)</IncludePath>
     <LibraryPath>G:\AWCustom\AWCustomServer\Library\lib\$(CONFIGURATION);G:\AWCustom\AWCustomServer\Library\lib\boost;$(LibraryPath)</LibraryPath>
     <ExecutablePath>G:\AWCustom\AWCustomServer\Library\bin\$(CONFIGURATION);$(ExecutablePath)</ExecutablePath>

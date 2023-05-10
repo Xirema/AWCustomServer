@@ -34,20 +34,20 @@ int main() {
 	std::unordered_map<Point, float> grid;
 	std::minstd_rand engine{ std::random_device{}()};
 	std::uniform_real_distribution<float> dist{ 0, 100 };
-	for (int i = 0; i < 10; i++) {
-		for (int j = 0; j < 10; j++) {
+	for (int i = 0; i < 50; i++) {
+		for (int j = 0; j < 50; j++) {
 			Point p{ i, j };
 			grid.emplace(p, dist(engine));
 		}
 	}
 
-	for (int i : {2, 5, 8}) {
+	for (int i : {2, 5, 8, 15, 24, 33, 42}) {
 		int jstart, jend;
 		if (i % 2 == 0) {
-			jstart = 3; jend = 9;
+			jstart = 3; jend = 49;
 		}
 		else {
-			jstart = 0; jend = 6;
+			jstart = 0; jend = 46;
 		}
 		for (int j = jstart; j <= jend; j++) {
 			Point p{ i, j };
@@ -56,7 +56,7 @@ int main() {
 	}
 
 	Point start{ 0,0 };
-	Point end{ 9,9 };
+	Point end{ 45,45 };
 
 	std::unordered_set<Point> unvisited{};
 	for (auto const& [p, _] : grid) {

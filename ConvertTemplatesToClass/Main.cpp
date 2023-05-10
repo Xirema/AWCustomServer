@@ -1,9 +1,10 @@
-#include<Utility/Generic/SimpleFile.h>
 #include<string>
 #include<iostream>
 #include<sstream>
 #include<boost/algorithm/string.hpp>
 #include<future>
+#include<filesystem>
+#include<fstream>
 #include<boost/json.hpp>
 
 std::string_view trim(std::string_view str) {
@@ -64,29 +65,31 @@ std::string typeFilter(std::string func, std::string_view type, std::string_view
 }
 
 int main() {
-	auto openFuture = std::async([]
-		{
-			return util::show_file_dialog(
-				util::dialog_type::OPEN,
-				"Typescript Files with Templates",
-				util::dialog_options::FILES | util::dialog_options::MULTI_SELECT
-			);
-		}
-	);
-	auto saveFuture = std::async([]
-		{
-			return util::show_file_dialog(
-				util::dialog_type::SAVE,
-				"File to save C++ Class Declaration"
-			);
-		}
-	);
+	auto rootDirectory = std::filesystem::path("G:/AWCustom/temp");
+	auto output = rootDirectory / "out.h";
+	auto templateDirectory = rootDirectory / "templates";
 
-	auto templatePaths = openFuture.get();
+	std::vector<std::filesystem::path> templatePaths;
+	for (auto path : std::filesystem::directory_iterator(templateDirectory)) {
+		if (!path.is_regular_file()) {
+			continue;
+		}
+		templatePaths.push_back(path.path());
+	}
 	std::stringstream ss;
 	std::optional<std::string_view> currentTemplateName;
 	for (auto const& path : templatePaths) {
-		auto fileContents = util::read_text_file(path);
+		std::string fileContents;
+		{
+			std::stringstream ss;
+			std::ifstream in{ path };
+			std::string line;
+			while (std::getline(in, line)) {
+				ss << line << '\n';
+			}
+			fileContents = ss.str();
+		}
+		//auto fileContents = util::read_text_file(path);
 		std::vector<std::string_view> lines;
 		boost::split(
 			lines,
@@ -305,8 +308,6 @@ R"Func([B][O]  if([VARNAME]) {
 		}
 	}
 
-	auto savePath = saveFuture.get();
-	if (savePath.size() > 0) {
-		util::write_text_file(savePath.front(), ss.str());
-	}
+	std::ofstream out{ output };
+	out << ss.str();
 }

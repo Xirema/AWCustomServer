@@ -81,11 +81,11 @@ namespace {
 					DATA.UNIT_TYPE
 					(
 						MOD_ID, NAME, COST, MAXFUEL, MAXAMMO, VISIONRANGE, MOVEMENTCLASS, MOVEMENTRANGE, FUELPERDAY, FUELPERDAYSTEALTH,
-						SUPPLYREPAIR, TRANSPORTCAPACITY, HITPOINTS, CAPTURESPEED, IGNORESVISIONOCCLUSION, STEALTHTYPE
+						SUPPLYREPAIR, TRANSPORTCAPACITY, HITPOINTS, CAPTURESPEED, IGNORESVISIONOCCLUSION, STEALTHTYPE, STATIONARYFIRE
 					)
 				values 
 					(
-						?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+						?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 					)
 			)SQL");
 			ParameterPack parameters;
@@ -105,7 +105,8 @@ namespace {
 				unitType.hitPoints,
 				unitType.captureSpeed,
 				unitType.ignoresVisionOcclusion,
-				unitType.stealthType
+				unitType.stealthType,
+				unitType.stationaryFire
 			);
 
 			mysql::results results;
