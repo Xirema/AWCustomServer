@@ -2395,6 +2395,7 @@ namespace datatypes {
 		std::optional<bool> occludesVision;
 		std::optional<int64_t> hitPoints;
 		std::optional<std::string> destroyed;
+		std::optional<int64_t> destroyedOrientation;
 		std::optional<std::string> damagedLike;
 		std::optional<std::vector<std::string>> activateList;
 		std::optional<std::vector<std::string>> activateActiveUnitEffects;
@@ -2516,6 +2517,14 @@ namespace datatypes {
 				}
 				else {
 					throw std::exception("Expected 'destroyed' as std::string in TerrainType, but was of wrong type.");
+				}
+			}
+			if (auto ptr = obj.if_contains("destroyedOrientation")) {
+				if (auto tPtr = ptr->if_int64()) {
+					destroyedOrientation = *tPtr;
+				}
+				else {
+					throw std::exception("Expected 'destroyedOrientation' as int64_t in TerrainType, but was of wrong type.");
 				}
 			}
 			if (auto ptr = obj.if_contains("damagedLike")) {
@@ -2666,6 +2675,9 @@ namespace datatypes {
 			if (destroyed) {
 				obj["destroyed"] = *destroyed;
 			}
+			if (destroyedOrientation) {
+				obj["destroyedOrientation"] = *destroyedOrientation;
+			}
 			if (damagedLike) {
 				obj["damagedLike"] = *damagedLike;
 			}
@@ -2711,6 +2723,7 @@ namespace datatypes {
 			}
 		}
 	};
+
 	struct UnitType {
 		std::string name;
 		int64_t cost;

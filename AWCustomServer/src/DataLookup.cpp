@@ -317,6 +317,7 @@ namespace {
 		set(terrain.activationChange,row[13]);
 		set(terrain.loseIfCaptured,row[14]);
 		set(terrain.loseIfAllCaptured,row[15]);
+		set(terrain.destroyedOrientation, row[16]);
 	}
 
 	void assignTerrainBuildRepairData(mysql::row_view const& row, datatypes::TerrainType& terrain) {

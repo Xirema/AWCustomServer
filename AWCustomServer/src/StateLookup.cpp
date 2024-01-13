@@ -72,7 +72,7 @@ namespace {
 		player1.playerType = "normal";
 		auto& player2 = playerStates.emplace_back();
 		player2.alive = true;
-		player2.armyColor = "bm";
+		player2.armyColor = "bh";
 		player2.commanderName = "sturm";
 		player2.id = "10000";
 		player2.owner = "2";

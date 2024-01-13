@@ -51,4 +51,12 @@ int main() {
 	catch (std::runtime_error const& e) {
 		std::cerr << e.what() << std::endl;
 	}
+	catch (...) {
+		try {
+			std::rethrow_exception(std::current_exception());
+		}
+		catch (std::exception const& e) {
+			std::cerr << e.what() << std::endl;
+		}
+	}
 }

@@ -427,7 +427,7 @@ namespace net {
 			sslCert(std::move(sslCert)),
 			ioContext(maxThreadCount <= 1'024 ? maxThreadCount : 1'024),
 			acceptor(networking::make_strand(ioContext)),
-			sslContext(ssl::context::tlsv12) {
+			sslContext(ssl::context::tlsv12_server) {
 			shouldStop = false;
 			//Does 1024 make sense as an upper limit? IDK lol
 			maxThreadCount = maxThreadCount <= 1'024 ? maxThreadCount : 1'024;

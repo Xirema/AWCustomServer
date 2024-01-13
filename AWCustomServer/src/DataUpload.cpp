@@ -262,11 +262,11 @@ namespace {
 					DATA.TERRAIN_TYPE
 					(
 						MOD_ID, NAME, STARS, MAXCAPTUREPOINTS, SAMEAS, INCOME, REPAIR, OCCLUDESVISION, HITPOINTS, DESTROYED, 
-						DAMAGEDLIKE, ACTIVATIONMAX, ACTIVATIONCHANGE, LOSEIFCAPTURED, LOSEIFALLCAPTURED
+						DAMAGEDLIKE, ACTIVATIONMAX, ACTIVATIONCHANGE, LOSEIFCAPTURED, LOSEIFALLCAPTURED, DESTROYEDORIENTATION
 					)
 				values
 					(
-						?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+						?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 					)
 			)SQL");
 			ParameterPack parameters;
@@ -286,7 +286,8 @@ namespace {
 				terrainType.activationMax,
 				terrainType.activationChange,
 				terrainType.loseIfCaptured,
-				terrainType.loseIfAllCaptured
+				terrainType.loseIfAllCaptured,
+				terrainType.destroyedOrientation
 			);
 			mysql::execution_state state;
 
