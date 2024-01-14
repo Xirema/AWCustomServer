@@ -19,33 +19,33 @@ namespace statetypes {
                     id = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'id' as std::string in GameState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'id' as std::string in GameState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'id' was missing in GameState");
+                throw std::runtime_error("'id' was missing in GameState");
             }
             if (auto ptr = obj.if_contains("day")) {
                 if (auto tPtr = ptr->if_int64()) {
                     day = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'day' as int64_t in GameState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'day' as int64_t in GameState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'day' was missing in GameState");
+                throw std::runtime_error("'day' was missing in GameState");
             }
             if (auto ptr = obj.if_contains("playerTurn")) {
                 if (auto tPtr = ptr->if_int64()) {
                     playerTurn = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'playerTurn' as int64_t in GameState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'playerTurn' as int64_t in GameState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'playerTurn' was missing in GameState");
+                throw std::runtime_error("'playerTurn' was missing in GameState");
             }
             if (auto ptr = obj.if_contains("playerOrder")) {
                 if (auto tPtr = ptr->if_array()) {
@@ -55,39 +55,39 @@ namespace statetypes {
                             arr.push_back(std::string{ *vPtr });
                         }
                         else {
-                            throw std::exception("Item in array 'playerOrder' in GameState was expected to be string, but was of wrong type.");
+                            throw std::runtime_error("Item in array 'playerOrder' in GameState was expected to be string, but was of wrong type.");
                         }
                     }
                     playerOrder = std::move(arr);
                 }
                 else {
-                    throw std::exception("Expected 'playerOrder' as array in GameState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'playerOrder' as array in GameState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'playerOrder' was missing in GameState");
+                throw std::runtime_error("'playerOrder' was missing in GameState");
             }
             if (auto ptr = obj.if_contains("variant")) {
                 if (auto tPtr = ptr->if_string()) {
                     variant = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'variant' as std::string in GameState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'variant' as std::string in GameState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'variant' was missing in GameState");
+                throw std::runtime_error("'variant' was missing in GameState");
             }
             if (auto ptr = obj.if_contains("active")) {
                 if (auto tPtr = ptr->if_bool()) {
                     active = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'active' as bool in GameState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'active' as bool in GameState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'active' was missing in GameState");
+                throw std::runtime_error("'active' was missing in GameState");
             }
         }
 
@@ -130,117 +130,117 @@ namespace statetypes {
                     id = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'id' as std::string in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'id' as std::string in PlayerState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'id' was missing in PlayerState");
+                throw std::runtime_error("'id' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("owner")) {
                 if (auto tPtr = ptr->if_string()) {
                     owner = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'owner' as std::string in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'owner' as std::string in PlayerState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'owner' was missing in PlayerState");
+                throw std::runtime_error("'owner' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("commanderName")) {
                 if (auto tPtr = ptr->if_string()) {
                     commanderName = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'commanderName' as std::string in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'commanderName' as std::string in PlayerState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'commanderName' was missing in PlayerState");
+                throw std::runtime_error("'commanderName' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("funds")) {
                 if (auto tPtr = ptr->if_int64()) {
                     funds = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'funds' as int64_t in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'funds' as int64_t in PlayerState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'funds' was missing in PlayerState");
+                throw std::runtime_error("'funds' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("powerCharge")) {
                 if (auto tPtr = ptr->if_int64()) {
                     powerCharge = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'powerCharge' as int64_t in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'powerCharge' as int64_t in PlayerState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'powerCharge' was missing in PlayerState");
+                throw std::runtime_error("'powerCharge' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("armyColor")) {
                 if (auto tPtr = ptr->if_string()) {
                     armyColor = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'armyColor' as std::string in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'armyColor' as std::string in PlayerState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'armyColor' was missing in PlayerState");
+                throw std::runtime_error("'armyColor' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("alive")) {
                 if (auto tPtr = ptr->if_bool()) {
                     alive = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'alive' as bool in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'alive' as bool in PlayerState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'alive' was missing in PlayerState");
+                throw std::runtime_error("'alive' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("totalPowerUses")) {
                 if (auto tPtr = ptr->if_int64()) {
                     totalPowerUses = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'totalPowerUses' as int64_t in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'totalPowerUses' as int64_t in PlayerState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'totalPowerUses' was missing in PlayerState");
+                throw std::runtime_error("'totalPowerUses' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("unitFacing")) {
                 if (auto tPtr = ptr->if_int64()) {
                     unitFacing = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'unitFacing' as int64_t in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'unitFacing' as int64_t in PlayerState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'unitFacing' was missing in PlayerState");
+                throw std::runtime_error("'unitFacing' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("playerType")) {
                 if (auto tPtr = ptr->if_string()) {
                     playerType = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'playerType' as std::string in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'playerType' as std::string in PlayerState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'playerType' was missing in PlayerState");
+                throw std::runtime_error("'playerType' was missing in PlayerState");
             }
             if (auto ptr = obj.if_contains("team")) {
                 if (auto tPtr = ptr->if_string()) {
                     team = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'team' as std::string in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'team' as std::string in PlayerState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("powerActive")) {
@@ -248,7 +248,7 @@ namespace statetypes {
                     powerActive = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'powerActive' as std::string in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'powerActive' as std::string in PlayerState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("powerActiveDay")) {
@@ -256,7 +256,7 @@ namespace statetypes {
                     powerActiveDay = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'powerActiveDay' as int64_t in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'powerActiveDay' as int64_t in PlayerState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("bannedUnits")) {
@@ -267,13 +267,13 @@ namespace statetypes {
                             arr.push_back(std::string{ *vPtr });
                         }
                         else {
-                            throw std::exception("Item in array 'bannedUnits' in PlayerState was expected to be string, but was of wrong type.");
+                            throw std::runtime_error("Item in array 'bannedUnits' in PlayerState was expected to be string, but was of wrong type.");
                         }
                     }
                     bannedUnits = std::move(arr);
                 }
                 else {
-                    throw std::exception("Expected 'bannedUnits' as array in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'bannedUnits' as array in PlayerState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("incomeMultiplier")) {
@@ -281,7 +281,7 @@ namespace statetypes {
                     incomeMultiplier = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'incomeMultiplier' as int64_t in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'incomeMultiplier' as int64_t in PlayerState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("coMeterMultiplier")) {
@@ -289,7 +289,7 @@ namespace statetypes {
                     coMeterMultiplier = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'coMeterMultiplier' as int64_t in PlayerState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'coMeterMultiplier' as int64_t in PlayerState, but was of wrong type.");
                 }
             }
         }
@@ -350,44 +350,44 @@ namespace statetypes {
                     id = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'id' as std::string in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'id' as std::string in SettingsState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'id' was missing in SettingsState");
+                throw std::runtime_error("'id' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("startingFunds")) {
                 if (auto tPtr = ptr->if_int64()) {
                     startingFunds = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'startingFunds' as int64_t in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'startingFunds' as int64_t in SettingsState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'startingFunds' was missing in SettingsState");
+                throw std::runtime_error("'startingFunds' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("incomeMultiplier")) {
                 if (auto tPtr = ptr->if_int64()) {
                     incomeMultiplier = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'incomeMultiplier' as int64_t in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'incomeMultiplier' as int64_t in SettingsState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'incomeMultiplier' was missing in SettingsState");
+                throw std::runtime_error("'incomeMultiplier' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("fogOfWar")) {
                 if (auto tPtr = ptr->if_bool()) {
                     fogOfWar = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'fogOfWar' as bool in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'fogOfWar' as bool in SettingsState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'fogOfWar' was missing in SettingsState");
+                throw std::runtime_error("'fogOfWar' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("variant")) {
                 if (auto tPtr = ptr->if_object()) {
@@ -397,79 +397,79 @@ namespace statetypes {
                             map[entry.key_c_str()] = int64_t{ *mPtr };
                         }
                         else {
-                            throw std::exception("Entry in map 'variant' in SettingsState was expected to be int64, but was of wrong type.");
+                            throw std::runtime_error("Entry in map 'variant' in SettingsState was expected to be int64, but was of wrong type.");
                         }
                     }
                     variant = std::move(map);
                 }
                 else {
-                    throw std::exception("Expected 'variant' as object in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'variant' as object in SettingsState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'variant' was missing in SettingsState");
+                throw std::runtime_error("'variant' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("coPowers")) {
                 if (auto tPtr = ptr->if_bool()) {
                     coPowers = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'coPowers' as bool in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'coPowers' as bool in SettingsState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'coPowers' was missing in SettingsState");
+                throw std::runtime_error("'coPowers' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("teams")) {
                 if (auto tPtr = ptr->if_bool()) {
                     teams = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'teams' as bool in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'teams' as bool in SettingsState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'teams' was missing in SettingsState");
+                throw std::runtime_error("'teams' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("modId")) {
                 if (auto tPtr = ptr->if_string()) {
                     modId = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'modId' as std::string in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'modId' as std::string in SettingsState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'modId' was missing in SettingsState");
+                throw std::runtime_error("'modId' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("coMeterSize")) {
                 if (auto tPtr = ptr->if_int64()) {
                     coMeterSize = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'coMeterSize' as int64_t in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'coMeterSize' as int64_t in SettingsState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'coMeterSize' was missing in SettingsState");
+                throw std::runtime_error("'coMeterSize' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("coMeterMultiplier")) {
                 if (auto tPtr = ptr->if_int64()) {
                     coMeterMultiplier = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'coMeterMultiplier' as int64_t in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'coMeterMultiplier' as int64_t in SettingsState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'coMeterMultiplier' was missing in SettingsState");
+                throw std::runtime_error("'coMeterMultiplier' was missing in SettingsState");
             }
             if (auto ptr = obj.if_contains("unitLimit")) {
                 if (auto tPtr = ptr->if_int64()) {
                     unitLimit = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'unitLimit' as int64_t in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'unitLimit' as int64_t in SettingsState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("captureLimit")) {
@@ -477,7 +477,7 @@ namespace statetypes {
                     captureLimit = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'captureLimit' as int64_t in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'captureLimit' as int64_t in SettingsState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("dayLimit")) {
@@ -485,7 +485,7 @@ namespace statetypes {
                     dayLimit = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'dayLimit' as int64_t in SettingsState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'dayLimit' as int64_t in SettingsState, but was of wrong type.");
                 }
             }
         }
@@ -535,51 +535,51 @@ namespace statetypes {
                     id = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'id' as std::string in TerrainState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'id' as std::string in TerrainState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'id' was missing in TerrainState");
+                throw std::runtime_error("'id' was missing in TerrainState");
             }
             if (auto ptr = obj.if_contains("x")) {
                 if (auto tPtr = ptr->if_int64()) {
                     x = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'x' as int64_t in TerrainState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'x' as int64_t in TerrainState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'x' was missing in TerrainState");
+                throw std::runtime_error("'x' was missing in TerrainState");
             }
             if (auto ptr = obj.if_contains("y")) {
                 if (auto tPtr = ptr->if_int64()) {
                     y = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'y' as int64_t in TerrainState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'y' as int64_t in TerrainState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'y' was missing in TerrainState");
+                throw std::runtime_error("'y' was missing in TerrainState");
             }
             if (auto ptr = obj.if_contains("name")) {
                 if (auto tPtr = ptr->if_string()) {
                     name = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'name' as std::string in TerrainState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'name' as std::string in TerrainState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'name' was missing in TerrainState");
+                throw std::runtime_error("'name' was missing in TerrainState");
             }
             if (auto ptr = obj.if_contains("orientation")) {
                 if (auto tPtr = ptr->if_int64()) {
                     orientation = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'orientation' as int64_t in TerrainState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'orientation' as int64_t in TerrainState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("capturePoints")) {
@@ -587,7 +587,7 @@ namespace statetypes {
                     capturePoints = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'capturePoints' as int64_t in TerrainState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'capturePoints' as int64_t in TerrainState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("owner")) {
@@ -595,7 +595,7 @@ namespace statetypes {
                     owner = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'owner' as std::string in TerrainState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'owner' as std::string in TerrainState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("activationCount")) {
@@ -603,7 +603,7 @@ namespace statetypes {
                     activationCount = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'activationCount' as int64_t in TerrainState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'activationCount' as int64_t in TerrainState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("hitPoints")) {
@@ -611,7 +611,7 @@ namespace statetypes {
                     hitPoints = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'hitPoints' as int64_t in TerrainState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'hitPoints' as int64_t in TerrainState, but was of wrong type.");
                 }
             }
         }
@@ -659,84 +659,84 @@ namespace statetypes {
                     id = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'id' as std::string in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'id' as std::string in UnitState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'id' was missing in UnitState");
+                throw std::runtime_error("'id' was missing in UnitState");
             }
             if (auto ptr = obj.if_contains("x")) {
                 if (auto tPtr = ptr->if_int64()) {
                     x = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'x' as int64_t in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'x' as int64_t in UnitState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'x' was missing in UnitState");
+                throw std::runtime_error("'x' was missing in UnitState");
             }
             if (auto ptr = obj.if_contains("y")) {
                 if (auto tPtr = ptr->if_int64()) {
                     y = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'y' as int64_t in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'y' as int64_t in UnitState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'y' was missing in UnitState");
+                throw std::runtime_error("'y' was missing in UnitState");
             }
             if (auto ptr = obj.if_contains("name")) {
                 if (auto tPtr = ptr->if_string()) {
                     name = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'name' as std::string in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'name' as std::string in UnitState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'name' was missing in UnitState");
+                throw std::runtime_error("'name' was missing in UnitState");
             }
             if (auto ptr = obj.if_contains("ammo")) {
                 if (auto tPtr = ptr->if_int64()) {
                     ammo = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'ammo' as int64_t in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'ammo' as int64_t in UnitState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'ammo' was missing in UnitState");
+                throw std::runtime_error("'ammo' was missing in UnitState");
             }
             if (auto ptr = obj.if_contains("fuel")) {
                 if (auto tPtr = ptr->if_int64()) {
                     fuel = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'fuel' as int64_t in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'fuel' as int64_t in UnitState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'fuel' was missing in UnitState");
+                throw std::runtime_error("'fuel' was missing in UnitState");
             }
             if (auto ptr = obj.if_contains("active")) {
                 if (auto tPtr = ptr->if_bool()) {
                     active = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'active' as bool in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'active' as bool in UnitState, but was of wrong type.");
                 }
             }
             else {
-                throw std::exception("'active' was missing in UnitState");
+                throw std::runtime_error("'active' was missing in UnitState");
             }
             if (auto ptr = obj.if_contains("stunned")) {
                 if (auto tPtr = ptr->if_int64()) {
                     stunned = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'stunned' as int64_t in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'stunned' as int64_t in UnitState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("transporting")) {
@@ -747,13 +747,13 @@ namespace statetypes {
                             arr.push_back(std::string{ *vPtr });
                         }
                         else {
-                            throw std::exception("Item in array 'transporting' in UnitState was expected to be string, but was of wrong type.");
+                            throw std::runtime_error("Item in array 'transporting' in UnitState was expected to be string, but was of wrong type.");
                         }
                     }
                     transporting = std::move(arr);
                 }
                 else {
-                    throw std::exception("Expected 'transporting' as array in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'transporting' as array in UnitState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("owner")) {
@@ -761,7 +761,7 @@ namespace statetypes {
                     owner = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'owner' as std::string in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'owner' as std::string in UnitState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("hitPoints")) {
@@ -769,7 +769,7 @@ namespace statetypes {
                     hitPoints = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'hitPoints' as int64_t in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'hitPoints' as int64_t in UnitState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("realHitPoints")) {
@@ -777,7 +777,7 @@ namespace statetypes {
                     realHitPoints = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'realHitPoints' as int64_t in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'realHitPoints' as int64_t in UnitState, but was of wrong type.");
                 }
             }
             if (auto ptr = obj.if_contains("stealthed")) {
@@ -785,7 +785,7 @@ namespace statetypes {
                     stealthed = *tPtr;
                 }
                 else {
-                    throw std::exception("Expected 'stealthed' as bool in UnitState, but was of wrong type.");
+                    throw std::runtime_error("Expected 'stealthed' as bool in UnitState, but was of wrong type.");
                 }
             }
         }

@@ -1,4 +1,4 @@
-#include<Archive.h>
+/*#include<Archive.h>
 #include<zlib.h>
 #include<stdexcept>
 #include<iterator>
@@ -46,3 +46,4 @@ namespace arch {
 		return data;
 	}
 }
+*/

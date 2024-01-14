@@ -351,7 +351,7 @@ namespace {
 				return terrain.activateActiveTerrainEffects;
 			if (effectType == "AGE")
 				return terrain.activateActiveGlobalEffects;
-			throw std::exception("There was an invalid entry in the TERRAIN_ACTIVATIONEFFECT_REFERENCE table.");
+			throw std::runtime_error("There was an invalid entry in the TERRAIN_ACTIVATIONEFFECT_REFERENCE table.");
 		};
 		auto& effectList = getEffectList();
 		if (!effectList)
@@ -655,7 +655,7 @@ namespace {
 				return commander.activeGlobalEffectsCop;
 			if (effectType == "AGE" && effectCategory == 2)
 				return commander.activeGlobalEffectsScop;
-			throw std::exception("There was an invalid entry in the COMMANDER_EFFECT_REFERENCE table.");
+			throw std::runtime_error("There was an invalid entry in the COMMANDER_EFFECT_REFERENCE table.");
 		};
 
 		auto& vec = selector();
@@ -700,7 +700,7 @@ namespace {
 		catch (std::out_of_range const& e) {
 			throw net::RestError("There was a problem requesting the Data: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
 		}
-		catch (std::exception const& e) {
+		catch (std::runtime_error const& e) {
 			throw net::RestError("Unknown Error: " + std::string(e.what()), net::RestError::Type::INTERNAL_ERROR);
 		}
 		catch (net::RestError const& e) {

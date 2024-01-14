@@ -16,7 +16,7 @@ namespace {
 		catch (std::out_of_range const& e) {
 			throw net::RestError("There was a problem requesting the Data: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
 		}
-		catch (std::exception const& e) {
+		catch (std::runtime_error const& e) {
 			throw net::RestError("Unknown Error: " + std::string(e.what()), net::RestError::Type::INTERNAL_ERROR);
 		}
 		catch (net::RestError const& e) {

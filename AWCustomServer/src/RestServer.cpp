@@ -17,6 +17,10 @@ namespace net {
 	using tcp = networking::ip::tcp;
 	namespace ssl = boost::asio::ssl;
 
+	namespace {
+		constexpr bool DEBUGGING = false;
+	}
+
 	void loadServerCertificate(ssl::context& ctx, SSLCert const& sslCert) {
 		ctx.set_options(
 			ssl::context::default_workarounds |
@@ -34,6 +38,9 @@ namespace net {
 
 	namespace {
 		void workFunc(std::atomic_bool& shouldStop, networking::io_context& ioContext) {
+			if constexpr(DEBUGGING) {
+				std::cout << "DEBUG: workFunc()" << std::endl;
+			}
 			while (!shouldStop) {
 				try {
 					ioContext.run();
@@ -79,6 +86,7 @@ namespace net {
 		std::unordered_map<std::string, POSTFunc, CaseInsensitiveStringComparator, CaseInsensitiveStringComparator> postFunctions;
 		std::atomic_bool shouldStop;
 		networking::io_context ioContext;
+		std::unique_ptr<networking::io_context::work> work_ptr;
 		tcp::acceptor acceptor;
 		std::mutex funcMutex;
 		std::optional<SSLCert> sslCert;
@@ -344,6 +352,7 @@ namespace net {
 
 		void stop() {
 			shouldStop = true;
+			work_ptr.reset();
 			ioContext.stop();
 		}
 
@@ -399,15 +408,24 @@ namespace net {
 		}
 
 		void do_accept() {
+			if constexpr (DEBUGGING) {
+				std::cout << "DEBUG: do_accept();" << std::endl;
+			}
 			acceptor.async_accept(
 				networking::make_strand(ioContext),
 				[this](beast::error_code ec, tcp::socket socket) {
 					handle_accept(ec, std::move(socket));
 				}
 			);
+			if constexpr (DEBUGGING) {
+				std::cout << "DEBUG: do_accept()_end" << std::endl;
+			}
 		}
 
 		void handle_accept(beast::error_code ec, tcp::socket socket) {
+			if constexpr (DEBUGGING) {
+				std::cout << "DEBUG: Connection Accepted!" << std::endl;
+			}
 			if (ec) {
 				std::cerr << "Problem Accepting Connection: " << ec.what() << std::endl;
 				return;
@@ -426,11 +444,15 @@ namespace net {
 		RestServerImpl(std::string_view name, uint16_t port, std::optional<SSLCert> sslCert, uint32_t maxThreadCount) :
 			sslCert(std::move(sslCert)),
 			ioContext(maxThreadCount <= 1'024 ? maxThreadCount : 1'024),
+			work_ptr(std::make_unique<networking::io_context::work>(ioContext)),
 			acceptor(networking::make_strand(ioContext)),
 			sslContext(ssl::context::tlsv12_server) {
 			shouldStop = false;
 			//Does 1024 make sense as an upper limit? IDK lol
 			maxThreadCount = maxThreadCount <= 1'024 ? maxThreadCount : 1'024;
+			if constexpr (DEBUGGING) {
+				std::cout << "DEBUG: Num of Threads: " << maxThreadCount << std::endl;
+			}
 			for (uint32_t i = 0; i < maxThreadCount; i++) {
 				threads.emplace_back([this] {workFunc(shouldStop, ioContext); });
 			}
@@ -464,6 +486,9 @@ namespace net {
 			impl->postFunctions[name] = std::move(func);
 		}
 		impl->do_accept();
+		if constexpr (DEBUGGING) {
+			std::cout << "DEBUG: Now Accepting Connections!" << std::endl;
+		}
 	}
 
 	void RestServer::printRequests(bool value) {

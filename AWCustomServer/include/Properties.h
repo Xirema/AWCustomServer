@@ -4,6 +4,8 @@
 #include<iomanip>
 #include<unordered_map>
 #include<string>
+#include<memory>
+#include<optional>
 
 namespace properties {
 	class Properties {
