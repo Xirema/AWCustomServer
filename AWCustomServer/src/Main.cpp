@@ -7,8 +7,10 @@
 int main() {
 	try {
 		properties::Properties const& props = properties::Properties::instance();
-		net::SSLCert sslCert{.key = cert::key, .cert = cert::certificate};
-		net::RestServer server{ "AWCustom Server", static_cast<uint16_t>(props.getInt("serverPort")), sslCert };
+		//Uncomment to reenable SSL
+		//net::SSLCert sslCert{.key = cert::key, .cert = cert::certificate};
+		//net::RestServer server{ "AWCustom Server", static_cast<uint16_t>(props.getInt("serverPort")), sslCert };
+		net::RestServer server{ "AWCustom Server", static_cast<uint16_t>(props.getInt("serverPort"))};
 		std::unordered_map<std::string, net::GETFunc> getFunctions;
 		std::unordered_map<std::string, net::POSTFunc> postFunctions{
 			{"/data/uploadMod", rest::data::upload_mod},
