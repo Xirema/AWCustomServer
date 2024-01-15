@@ -6,6 +6,8 @@
 #include<iostream>
 #include<memory>
 #include<boost/algorithm/string.hpp>
+#include<optional>
+#include<iomanip>
 
 std::optional<int64_t> getOptionalInt64(boost::json::value const& v, std::string_view name) {
 	auto const& obj = v.as_object();
@@ -35,10 +37,12 @@ int main(int argc, char** argv) {
 			""
 		};
 
+		std::cout << "Now Connecting to server." << std::endl;
 		conn.connect(*endpoints.begin(), params);
 		conn.set_meta_mode(mysql::metadata_mode::full);
+		std::cout << "Connection successful." << std::endl;
 
-		std::string sql = "select * from DATA.MOD where VERSION = ?";
+		std::string sql = "select * from DATA.MOD where version = ?";
 
 		//mysql::results results;
 		auto statement = conn.prepare_statement(sql);
@@ -46,9 +50,12 @@ int main(int argc, char** argv) {
 		parameters.emplace_back("0.96");
 		std::vector<mysql::field_view> parametersView;
 		parametersView.emplace_back(parameters.at(0));
+		std::cout << "Parameters set." << std::endl;
 
 		//conn.query(sql, results);
 		//conn.execute_statement(statement, std::make_tuple(), results);
+
+		std::cout << "Beginning SQL Execution." << std::endl;
 		mysql::execution_state state;
 		std::vector<mysql::row> results;
 		conn.start_statement_execution(statement, parametersView.begin(), parametersView.end(), state);
@@ -58,7 +65,7 @@ int main(int argc, char** argv) {
 				results.emplace_back(row);
 			}
 		}
-
+		std::cout << "SQL Execution concluded." << std::endl;
 
 		size_t columns = state.meta().size();
 		size_t rows = results.size();
@@ -99,6 +106,11 @@ int main(int argc, char** argv) {
 		}
 
 		conn.close();
+	} 
+	catch (mysql::error_with_diagnostics const& e) {
+		std::cerr << "MYSQL ERROR: " << e.code() << std::endl;
+		std::cerr << e.get_diagnostics().client_message() << std::endl;
+		std::cerr << e.get_diagnostics().server_message() << std::endl;
 	}
 	catch (...) {
 		try {

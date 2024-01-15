@@ -187,7 +187,7 @@ namespace {
 		settingState.coMeterMultiplier = 100;
 		settingState.coMeterSize = 9000;
 		settingState.coPowers = true;
-		settingState.modId = "49";
+		settingState.modId = "51";
 		boost::json::object obj;
 		settingState.writeTo(obj);
 		return boost::json::serialize(obj);
