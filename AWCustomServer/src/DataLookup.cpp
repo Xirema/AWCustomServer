@@ -125,23 +125,20 @@ namespace {
 		return getResults(connection, state);
 	}
 
-	std::optional<int64_t> getModId(mysql::tcp_ssl_connection& connection, boost::json::object const& json) {
-		if (auto ret = json.if_contains("modId"); ret && ret->is_int64()) {
-			return static_cast<int64_t>(ret->as_int64());
-		}
-		if (auto ret = json.if_contains("modId"); ret && ret->is_string()) {
-			return static_cast<int64_t>(std::atoll(ret->as_string().c_str()));
+	std::optional<int64_t> getModId(mysql::tcp_ssl_connection& connection, net::HTTPHeaders const& headers) {
+		if(auto ret = headers.httpHeaders.find("modid"); ret != headers.httpHeaders.end()) {
+			return std::stoll(ret->second);
 		}
 		std::string_view modName;
 		std::optional<std::string_view> modVersion;
-		if (auto ret = json.if_contains("modName"); ret && ret->is_string()) {
-			modName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("modname"); ret != headers.httpHeaders.end()) {
+			modName = ret->second;
 		}
 		else {
 			throw net::RestError("No ModId or ModName specified for lookup.", net::RestError::Type::INVALID_DATA);
 		}
-		if (auto ret = json.if_contains("modVersion"); ret && ret->is_string()) {
-			modVersion = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("modversion"); ret != headers.httpHeaders.end()) {
+			modVersion = ret->second;
 		}
 		std::string sql = R"SQL(
 			select
@@ -683,9 +680,9 @@ namespace {
 		setting.variant->emplace(*get<std::string>(row[3]), *get<int64_t>(row[4]));
 	}
 
-	std::string error_guard(net::POSTFunc func, net::HTTPHeaders const& headers, std::string body) {
+	std::string error_guard(net::GETFunc func, net::HTTPHeaders const& headers) {
 		try {
-			return func(headers, std::move(body));
+			return func(headers);
 		}
 		catch (mysql::error_with_diagnostics const& e) {
 			auto const& diagnostics = e.get_diagnostics();
@@ -716,16 +713,15 @@ namespace {
 		}
 	}
 
-	std::string get_weapons_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_weapons_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> weaponName;
-		if (auto ret = json.if_contains("weaponName"); ret && ret->is_string()) {
-			weaponName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("weaponName"); ret != headers.httpHeaders.end()) {
+			weaponName = ret->second;
 		}
 		auto results = getLookup(
 			session.connection,
@@ -773,16 +769,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_units_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_units_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> unitName;
-		if (auto ret = json.if_contains("unitName"); ret && ret->is_string()) {
-			unitName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("unitName"); ret != headers.httpHeaders.end()) {
+			unitName = ret->second;
 		}
 		auto results = getLookup(session.connection, "UNIT_TYPE", *modId, unitName);
 		std::vector<datatypes::UnitType> units;
@@ -837,16 +832,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_terrains_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_terrains_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> terrainName;
-		if (auto ret = json.if_contains("terrainName"); ret && ret->is_string()) {
-			terrainName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("terrainName"); ret != headers.httpHeaders.end()) {
+			terrainName = ret->second;
 		}
 		std::vector<datatypes::TerrainType> terrains;
 		auto results = getLookup(
@@ -902,16 +896,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_commanders_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_commanders_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> commanderName;
-		if (auto ret = json.if_contains("commanderName"); ret && ret->is_string()) {
-			commanderName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("commanderName"); ret != headers.httpHeaders.end()) {
+			commanderName = ret->second;
 		}
 		std::vector<datatypes::CommanderType> commanders;
 		auto results = getLookup(
@@ -943,16 +936,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_movements_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_movements_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> movementName;
-		if (auto ret = json.if_contains("movementName"); ret && ret->is_string()) {
-			movementName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("movementName"); ret != headers.httpHeaders.end()) {
+			movementName = ret->second;
 		}
 		std::vector<datatypes::MovementClass> movements;
 		auto results = getLookup(
@@ -984,16 +976,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_players_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_players_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> playerName;
-		if (auto ret = json.if_contains("playerName"); ret && ret->is_string()) {
-			playerName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("playerName"); ret != headers.httpHeaders.end()) {
+			playerName = ret->second;
 		}
 		std::vector<datatypes::PlayerType> players;
 		auto results = getLookup(
@@ -1042,16 +1033,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_pues_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_pues_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> effectName;
-		if (auto ret = json.if_contains("effectName"); ret && ret->is_string()) {
-			effectName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
+			effectName = ret->second;
 		}
 		std::vector<datatypes::PassiveUnitEffect> effects;
 		auto results = getLookup(
@@ -1147,16 +1137,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_aues_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_aues_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> effectName;
-		if (auto ret = json.if_contains("effectName"); ret && ret->is_string()) {
-			effectName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
+			effectName = ret->second;
 		}
 		std::vector<datatypes::ActiveUnitEffect> effects;
 		auto results = getLookup(
@@ -1182,16 +1171,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_ptes_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_ptes_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> effectName;
-		if (auto ret = json.if_contains("effectName"); ret && ret->is_string()) {
-			effectName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
+			effectName = ret->second;
 		}
 		std::vector<datatypes::PassiveTerrainEffect> effects;
 		auto results = getLookup(
@@ -1231,16 +1219,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_ates_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_ates_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> effectName;
-		if (auto ret = json.if_contains("effectName"); ret && ret->is_string()) {
-			effectName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
+			effectName = ret->second;
 		}
 		std::vector<datatypes::ActiveTerrainEffect> effects;
 		auto results = getLookup(
@@ -1265,16 +1252,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_pges_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_pges_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> effectName;
-		if (auto ret = json.if_contains("effectName"); ret && ret->is_string()) {
-			effectName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
+			effectName = ret->second;
 		}
 		std::vector<datatypes::PassiveGlobalEffect> effects;
 		auto results = getLookup(
@@ -1311,16 +1297,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_ages_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_ages_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> effectName;
-		if (auto ret = json.if_contains("effectName"); ret && ret->is_string()) {
-			effectName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
+			effectName = ret->second;
 		}
 		std::vector<datatypes::ActiveGlobalEffect> effects;
 		auto results = getLookup(
@@ -1357,16 +1342,15 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_settings_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_settings_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> settingsName;
-		if (auto ret = json.if_contains("settingsName"); ret && ret->is_string()) {
-			settingsName = ret->as_string().c_str();
+		if (auto ret = headers.httpHeaders.find("settingsName"); ret != headers.httpHeaders.end()) {
+			settingsName = ret->second;
 		}
 		std::vector<datatypes::Settings> settings;
 		auto results = getLookup(
@@ -1402,10 +1386,9 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_mod_metadata_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_mod_metadata_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find mod for provided input parameters", net::RestError::Type::INVALID_DATA);
 		}
@@ -1438,24 +1421,23 @@ namespace {
 		}
 	}
 
-	std::string get_text_resources_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_text_resources_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> key;
-		if (auto name = json.if_contains("key")) {
-			key.emplace(name->as_string().c_str());
+		if (auto ret = headers.httpHeaders.find("key"); ret != headers.httpHeaders.end()) {
+			key = ret->second;
 		}
 		std::optional<std::string_view> type;
-		if (auto name = json.if_contains("type")) {
-			type.emplace(name->as_string().c_str());
+		if (auto ret = headers.httpHeaders.find("type"); ret != headers.httpHeaders.end()) {
+			type = ret->second;
 		}
 		std::optional<std::string_view> language;
-		if (auto name = json.if_contains("language")) {
-			language.emplace(name->as_string().c_str());
+		if (auto ret = headers.httpHeaders.find("language"); ret != headers.httpHeaders.end()) {
+			language = ret->second;
 		}
 		std::map<std::tuple<std::string, std::string, std::optional<std::string>>, datatypes::TextResource> resources;
 		
@@ -1543,24 +1525,23 @@ namespace {
 		return boost::json::serialize(ret);
 	}
 
-	std::string get_image_resources_impl(net::HTTPHeaders const& headers, std::string body) {
+	std::string get_image_resources_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
-		auto json = boost::json::parse(body).as_object();
-		auto modId = getModId(session.connection, json);
+		auto modId = getModId(session.connection, headers);
 		if (!modId) {
 			throw net::RestError("Unable to find Mod.", net::RestError::Type::INVALID_DATA);
 		}
 		std::optional<std::string_view> key;
-		if (auto name = json.if_contains("key")) {
-			key.emplace(name->as_string().c_str());
+		if (auto ret = headers.httpHeaders.find("key"); ret != headers.httpHeaders.end()) {
+			key = ret->second;
 		}
 		std::optional<std::string_view> type;
-		if (auto name = json.if_contains("type")) {
-			type.emplace(name->as_string().c_str());
+		if (auto ret = headers.httpHeaders.find("type"); ret != headers.httpHeaders.end()) {
+			type = ret->second;
 		}
 		std::optional<std::string_view> army;
-		if (auto name = json.if_contains("army")) {
-			army.emplace(name->as_string().c_str());
+		if (auto ret = headers.httpHeaders.find("army"); ret != headers.httpHeaders.end()) {
+			army = ret->second;
 		}
 		std::map<std::tuple<std::string, std::string, std::optional<std::string>, std::optional<int64_t>>, datatypes::ImageResource> resources;
 
@@ -1657,65 +1638,65 @@ namespace {
 	}
 }
 
-std::string rest::data::get_weapons(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_weapons_impl, headers, std::move(body));
+std::string rest::data::get_weapons(net::HTTPHeaders const& headers) {
+	return error_guard(get_weapons_impl, headers);
 }
 
-std::string rest::data::get_units(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_units_impl, headers, std::move(body));
+std::string rest::data::get_units(net::HTTPHeaders const& headers) {
+	return error_guard(get_units_impl, headers);
 }
 
-std::string rest::data::get_terrains(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_terrains_impl, headers, std::move(body));
+std::string rest::data::get_terrains(net::HTTPHeaders const& headers) {
+	return error_guard(get_terrains_impl, headers);
 }
 
-std::string rest::data::get_commanders(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_commanders_impl, headers, std::move(body));
+std::string rest::data::get_commanders(net::HTTPHeaders const& headers) {
+	return error_guard(get_commanders_impl, headers);
 }
 
-std::string rest::data::get_movements(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_movements_impl, headers, std::move(body));
+std::string rest::data::get_movements(net::HTTPHeaders const& headers) {
+	return error_guard(get_movements_impl, headers);
 }
 
-std::string rest::data::get_players(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_players_impl, headers, std::move(body));
+std::string rest::data::get_players(net::HTTPHeaders const& headers) {
+	return error_guard(get_players_impl, headers);
 }
 
-std::string rest::data::get_pues(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_pues_impl, headers, std::move(body));
+std::string rest::data::get_pues(net::HTTPHeaders const& headers) {
+	return error_guard(get_pues_impl, headers);
 }
 
-std::string rest::data::get_aues(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_aues_impl, headers, std::move(body));
+std::string rest::data::get_aues(net::HTTPHeaders const& headers) {
+	return error_guard(get_aues_impl, headers);
 }
 
-std::string rest::data::get_ptes(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_ptes_impl, headers, std::move(body));
+std::string rest::data::get_ptes(net::HTTPHeaders const& headers) {
+	return error_guard(get_ptes_impl, headers);
 }
 
-std::string rest::data::get_ates(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_ates_impl, headers, std::move(body));
+std::string rest::data::get_ates(net::HTTPHeaders const& headers) {
+	return error_guard(get_ates_impl, headers);
 }
 
-std::string rest::data::get_pges(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_pges_impl, headers, std::move(body));
+std::string rest::data::get_pges(net::HTTPHeaders const& headers) {
+	return error_guard(get_pges_impl, headers);
 }
 
-std::string rest::data::get_ages(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_ages_impl, headers, std::move(body));
+std::string rest::data::get_ages(net::HTTPHeaders const& headers) {
+	return error_guard(get_ages_impl, headers);
 }
 
-std::string rest::data::get_settings(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_settings_impl, headers, std::move(body));
+std::string rest::data::get_settings(net::HTTPHeaders const& headers) {
+	return error_guard(get_settings_impl, headers);
 }
 
-std::string rest::data::get_mod_metadata(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_mod_metadata_impl, headers, std::move(body));
+std::string rest::data::get_mod_metadata(net::HTTPHeaders const& headers) {
+	return error_guard(get_mod_metadata_impl, headers);
 }
 
-std::string rest::data::get_text_resources(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_text_resources_impl, headers, std::move(body));
+std::string rest::data::get_text_resources(net::HTTPHeaders const& headers) {
+	return error_guard(get_text_resources_impl, headers);
 }
-std::string rest::data::get_image_resources(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_image_resources_impl, headers, std::move(body));
+std::string rest::data::get_image_resources(net::HTTPHeaders const& headers) {
+	return error_guard(get_image_resources_impl, headers);
 }

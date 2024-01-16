@@ -1,11 +1,17 @@
 #include<RestFunctions.h>
 #include<StateTypes.h>
 #include<random>
+#include<boost/mysql.hpp>
 
+namespace mysql = boost::mysql;
 namespace {
-	std::string error_guard(net::POSTFunc func, net::HTTPHeaders const& headers, std::string body) {
+	std::string error_guard(net::GETFunc func, net::HTTPHeaders const& headers) {
 		try {
-			return func(headers, std::move(body));
+			return func(headers);
+		}
+		catch (mysql::error_with_diagnostics const& e) {
+			auto const& diagnostics = e.get_diagnostics();
+			throw net::RestError("There was a problem with the SQL request to the database: " + std::string(e.what()) + ": " + std::string(diagnostics.server_message()), net::RestError::Type::INTERNAL_ERROR);
 		}
 		catch (boost::system::system_error const& e) {
 			throw net::RestError("There was a problem requesting the Data: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
@@ -32,12 +38,15 @@ namespace {
 		}
 	}
 
-	int64_t get_id(std::string_view str) {
-		return std::atoll(str.data());
+	int64_t get_id(net::HTTPHeaders const& headers) {
+		if (auto ret = headers.httpHeaders.find("gameid"); ret != headers.httpHeaders.end()) {
+			return std::stoll(ret->second);
+		}
+		throw net::RestError("Game Id not specified", net::RestError::Type::INVALID_DATA);
 	}
 
-	std::string get_gamestate_impl(net::HTTPHeaders const& headers, std::string body) {
-		auto gameId = get_id(boost::json::parse(body).at("gameId").as_string().c_str());
+	std::string get_gamestate_impl(net::HTTPHeaders const& headers) {
+		auto gameId = get_id(headers);
 		if (gameId != -1) {
 			throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
 		}
@@ -53,8 +62,8 @@ namespace {
 		return boost::json::serialize(obj);
 	}
 
-	std::string get_playerstates_impl(net::HTTPHeaders const& headers, std::string body) {
-		auto gameId = get_id(boost::json::parse(body).at("gameId").as_string().c_str());
+	std::string get_playerstates_impl(net::HTTPHeaders const& headers) {
+		auto gameId = get_id(headers);
 		if (gameId != -1) {
 			throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
 		}
@@ -92,8 +101,8 @@ namespace {
 		return boost::json::serialize(arr);
 	}
 
-	std::string get_unitstates_impl(net::HTTPHeaders const& headers, std::string body) {
-		auto gameId = get_id(boost::json::parse(body).at("gameId").as_string().c_str());
+	std::string get_unitstates_impl(net::HTTPHeaders const& headers) {
+		auto gameId = get_id(headers);
 		if (gameId != -1) {
 			throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
 		}
@@ -138,8 +147,8 @@ namespace {
 		return boost::json::serialize(arr);
 	}
 
-	std::string get_terrainstates_impl(net::HTTPHeaders const& headers, std::string body) {
-		auto gameId = get_id(boost::json::parse(body).at("gameId").as_string().c_str());
+	std::string get_terrainstates_impl(net::HTTPHeaders const& headers) {
+		auto gameId = get_id(headers);
 		if (gameId != -1) {
 			throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
 		}
@@ -172,8 +181,8 @@ namespace {
 		return boost::json::serialize(arr);
 	}
 
-	std::string get_settingstate_impl(net::HTTPHeaders const& headers, std::string body) {
-		auto gameId = get_id(boost::json::parse(body).at("gameId").as_string().c_str());
+	std::string get_settingstate_impl(net::HTTPHeaders const& headers) {
+		auto gameId = get_id(headers);
 		if (gameId != -1) {
 			throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
 		}
@@ -194,22 +203,22 @@ namespace {
 	}
 }
 
-std::string rest::state::get_gamestate(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_gamestate_impl, headers, std::move(body));
+std::string rest::state::get_gamestate(net::HTTPHeaders const& headers) {
+	return error_guard(get_gamestate_impl, headers);
 }
 
-std::string rest::state::get_playerstates(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_playerstates_impl, headers, std::move(body));
+std::string rest::state::get_playerstates(net::HTTPHeaders const& headers) {
+	return error_guard(get_playerstates_impl, headers);
 }
 
-std::string rest::state::get_unitstates(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_unitstates_impl, headers, std::move(body));
+std::string rest::state::get_unitstates(net::HTTPHeaders const& headers) {
+	return error_guard(get_unitstates_impl, headers);
 }
 
-std::string rest::state::get_terrainstates(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_terrainstates_impl, headers, std::move(body));
+std::string rest::state::get_terrainstates(net::HTTPHeaders const& headers) {
+	return error_guard(get_terrainstates_impl, headers);
 }
 
-std::string rest::state::get_settingstate(net::HTTPHeaders const& headers, std::string body) {
-	return error_guard(get_settingstate_impl, headers, std::move(body));
+std::string rest::state::get_settingstate(net::HTTPHeaders const& headers) {
+	return error_guard(get_settingstate_impl, headers);
 }

@@ -84,6 +84,7 @@ namespace net {
 		std::vector<std::thread> threads;
 		std::unordered_map<std::string, GETFunc, CaseInsensitiveStringComparator, CaseInsensitiveStringComparator> getFunctions;
 		std::unordered_map<std::string, POSTFunc, CaseInsensitiveStringComparator, CaseInsensitiveStringComparator> postFunctions;
+		std::unordered_map<std::string, PUTFunc, CaseInsensitiveStringComparator, CaseInsensitiveStringComparator> putFunctions;
 		std::atomic_bool shouldStop;
 		networking::io_context ioContext;
 		std::unique_ptr<networking::io_context::work> work_ptr;
@@ -282,6 +283,20 @@ namespace net {
 						return do_send(not_found(headers.target));
 					}
 				}
+				else if (request.method() == http::verb::put) {
+					if (auto it = parent->putFunctions.find(headers.target); it != parent->putFunctions.end()) {
+						try {
+							response.body() = it->second(headers, request.body());
+						}
+						catch (RestError const& e) {
+							return do_send(bad_request(e));
+						}
+						response.content_length(response.body().size());
+					}
+					else {
+						return do_send(not_found(headers.target));
+					}
+				}
 				else if (request.method() == http::verb::options) {
 					string_response response{ http::status::no_content, request.version() };
 					response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
@@ -362,50 +377,72 @@ namespace net {
 			}
 		}
 
-		std::optional<GETFunc> registerGET(std::string_view name, GETFunc func) {
-			std::string n{ name };
-			if (auto it = getFunctions.find(n); it != getFunctions.end()) {
-				std::swap(it->second, func);
-				return func;
-			}
-			else {
-				getFunctions[n] = std::move(func);
-				return {};
-			}
-		}
-		std::optional<GETFunc> unregisterGET(std::string_view name) {
-			std::string n{ name };
-			if (auto it = getFunctions.find(n); it != getFunctions.end()) {
-				auto ret = make_optional(std::move(it->second));
-				getFunctions.erase(it);
-				return ret;
-			}
-			else {
-				return {};
-			}
-		}
-		std::optional<POSTFunc> registerPOST(std::string_view name, POSTFunc func) {
-			std::string n{ name };
-			if (auto it = postFunctions.find(n); it != postFunctions.end()) {
-				std::swap(it->second, func);
-				return func;
-			}
-			else {
-				postFunctions[n] = std::move(func);
-				return {};
-			}
-		}
-		std::optional<POSTFunc> unregisterPOST(std::string_view name) {
-			std::string n{ name };
-			if (auto it = postFunctions.find(n); it != postFunctions.end()) {
-				auto ret = make_optional(std::move(it->second));
-				postFunctions.erase(it);
-				return ret;
-			}
-			else {
-				return {};
-			}
-		}
+		//std::optional<GETFunc> registerGET(std::string_view name, GETFunc func) {
+		//	std::string n{ name };
+		//	if (auto it = getFunctions.find(n); it != getFunctions.end()) {
+		//		std::swap(it->second, func);
+		//		return func;
+		//	}
+		//	else {
+		//		getFunctions[n] = std::move(func);
+		//		return {};
+		//	}
+		//}
+		//std::optional<GETFunc> unregisterGET(std::string_view name) {
+		//	std::string n{ name };
+		//	if (auto it = getFunctions.find(n); it != getFunctions.end()) {
+		//		auto ret = make_optional(std::move(it->second));
+		//		getFunctions.erase(it);
+		//		return ret;
+		//	}
+		//	else {
+		//		return {};
+		//	}
+		//}
+		//std::optional<POSTFunc> registerPOST(std::string_view name, POSTFunc func) {
+		//	std::string n{ name };
+		//	if (auto it = postFunctions.find(n); it != postFunctions.end()) {
+		//		std::swap(it->second, func);
+		//		return func;
+		//	}
+		//	else {
+		//		postFunctions[n] = std::move(func);
+		//		return {};
+		//	}
+		//}
+		//std::optional<POSTFunc> unregisterPOST(std::string_view name) {
+		//	std::string n{ name };
+		//	if (auto it = postFunctions.find(n); it != postFunctions.end()) {
+		//		auto ret = make_optional(std::move(it->second));
+		//		postFunctions.erase(it);
+		//		return ret;
+		//	}
+		//	else {
+		//		return {};
+		//	}
+		//}
+		//std::optional<PUTFunc> registerPUT(std::string_view name, PUTFunc func) {
+		//	std::string n{ name };
+		//	if (auto it = putFunctions.find(n); it != putFunctions.end()) {
+		//		std::swap(it->second, func);
+		//		return func;
+		//	}
+		//	else {
+		//		putFunctions[n] = std::move(func);
+		//		return {};
+		//	}
+		//}
+		//std::optional<PUTFunc> unregisterPUT(std::string_view name) {
+		//	std::string n{ name };
+		//	if (auto it = putFunctions.find(n); it != putFunctions.end()) {
+		//		auto ret = make_optional(std::move(it->second));
+		//		putFunctions.erase(it);
+		//		return ret;
+		//	}
+		//	else {
+		//		return {};
+		//	}
+		//}
 
 		void do_accept() {
 			if constexpr (DEBUGGING) {
@@ -478,12 +515,19 @@ namespace net {
 		impl->join();
 	}
 
-	void RestServer::start(std::unordered_map<std::string, GETFunc> getFunctions, std::unordered_map<std::string, POSTFunc> postFunctions) {
+	void RestServer::start(
+		std::unordered_map<std::string, GETFunc> getFunctions, 
+		std::unordered_map<std::string, POSTFunc> postFunctions,
+		std::unordered_map<std::string, PUTFunc> putFunctions
+	) {
 		for (auto& [name, func] : getFunctions) {
 			impl->getFunctions[name] = std::move(func);
 		}
 		for (auto& [name, func] : postFunctions) {
 			impl->postFunctions[name] = std::move(func);
+		}
+		for (auto& [name, func] : putFunctions) {
+			impl->putFunctions[name] = std::move(func);
 		}
 		impl->do_accept();
 		if constexpr (DEBUGGING) {

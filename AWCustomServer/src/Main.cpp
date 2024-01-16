@@ -11,9 +11,7 @@ int main() {
 		//net::SSLCert sslCert{.key = cert::key, .cert = cert::certificate};
 		//net::RestServer server{ "AWCustom Server", static_cast<uint16_t>(props.getInt("serverPort")), sslCert };
 		net::RestServer server{ "AWCustom Server", static_cast<uint16_t>(props.getInt("serverPort"))};
-		std::unordered_map<std::string, net::GETFunc> getFunctions;
-		std::unordered_map<std::string, net::POSTFunc> postFunctions{
-			{"/data/uploadMod", rest::data::upload_mod},
+		std::unordered_map<std::string, net::GETFunc> getFunctions{
 			{"/data/getUnits", rest::data::get_units},
 			{"/data/getWeapons", rest::data::get_weapons},
 			{"/data/getTerrains", rest::data::get_terrains},
@@ -37,14 +35,21 @@ int main() {
 			{"/state/getPlayerStates", rest::state::get_playerstates},
 			{"/state/getSettingState", rest::state::get_settingstate},
 		};
-		server.start(getFunctions, postFunctions);
+		std::unordered_map<std::string, net::POSTFunc> postFunctions{
+			{"/data/uploadMod", rest::data::upload_mod},
+		};
+		std::unordered_map<std::string, net::PUTFunc> putFunctions;
+		server.start(getFunctions, postFunctions, putFunctions);
 		//server.printRequests(true);
 		std::cout << "Listening for the following endpoints:" << std::endl;
 		for (auto const& [name, func] : getFunctions) {
-			std::cout << "  " << name << std::endl;
+			std::cout << "  GET:  " << name << std::endl;
 		}
 		for (auto const& [name, func] : postFunctions) {
-			std::cout << "  " << name << std::endl;
+			std::cout << "  POST: " << name << std::endl;
+		}
+		for (auto const& [name, func] : putFunctions) {
+			std::cout << "  PUT:  " << name << std::endl;
 		}
 		std::cout << "Press [Enter] to stop the server." << std::endl;
 		std::string line;
