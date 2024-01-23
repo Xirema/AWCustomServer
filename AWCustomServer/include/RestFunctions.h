@@ -17,8 +17,8 @@ namespace rest {
 		std::string get_pges(net::HTTPHeaders const& headers);
 		std::string get_ages(net::HTTPHeaders const& headers);
 		std::string get_settings(net::HTTPHeaders const& headers);
-		std::string get_text_resources(net::HTTPHeaders const& headers);
-		std::string get_image_resources(net::HTTPHeaders const& headers);
+		//std::string get_text_resources(net::HTTPHeaders const& headers);
+		//std::string get_image_resources(net::HTTPHeaders const& headers);
 		std::string get_mod_metadata(net::HTTPHeaders const& headers);
 	}
 

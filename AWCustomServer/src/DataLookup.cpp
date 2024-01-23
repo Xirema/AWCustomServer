@@ -3,36 +3,20 @@
 #include<SQLUtil.h>
 #include<boost/mysql.hpp>
 #include<boost/algorithm/string.hpp>
-#include<DataTypes.h>
 #include<iostream>
+#include<jss/ModMetadata.h>
+#include<jss/Commander.h>
+#include<jss/Effect.h>
+#include<jss/Movement.h>
+#include<jss/Settings.h>
+#include<jss/Terrain.h>
+#include<jss/Unit.h>
 
 namespace mysql = boost::mysql;
 namespace {
 	using ParameterPack = std::vector<mysql::field>;
-	using Results = std::vector<mysql::row>;
-	std::vector<mysql::field_view> asView(ParameterPack const& parameters) {
-		std::vector<mysql::field_view> ret;
-		for (auto const& field : parameters) {
-			ret.emplace_back(field);
-		}
-		return ret;
-	}
 
-	Results getResults(
-		mysql::tcp_ssl_connection& connection,
-		mysql::execution_state& state
-	) {
-		Results results;
-		while (!state.complete()) {
-			auto rows = connection.read_some_rows(state);
-			for (auto const& row : rows) {
-				results.emplace_back(row);
-			}
-		}
-		return results;
-	}
-
-	Results getLookup(
+	mysql::results getLookup(
 		mysql::tcp_ssl_connection& connection,
 		std::string_view tableName,
 		int64_t modId,
@@ -58,18 +42,19 @@ namespace {
 		boost::replace_first(sql, "[TABLE]", tableName);
 
 		auto statement = connection.prepare_statement(sql);
-		mysql::execution_state state;
-		auto parametersView = asView(parameters);
-		connection.start_statement_execution(
-			statement,
-			parametersView.begin(),
-			parametersView.end(),
-			state
+		mysql::results ret;
+		connection.execute(
+			statement.bind(
+				parameters.cbegin(),
+				parameters.cend()
+			)
+			,
+			ret
 		);
-		return getResults(connection, state);
+		return ret;
 	}
 
-	Results getReferenceLookup(
+	mysql::results getReferenceLookup(
 		mysql::tcp_ssl_connection& connection,
 		std::string_view referenceTableName, 
 		std::string_view referenceColumn,
@@ -113,16 +98,16 @@ namespace {
 		}
 
 		auto statement = connection.prepare_statement(sql);
-		auto parametersView = asView(parameters);
-		mysql::execution_state state;
-		connection.start_statement_execution(
-			statement,
-			parametersView.begin(),
-			parametersView.end(),
-			state
+		mysql::results ret;
+		connection.execute(
+			statement.bind(
+				parameters.cbegin(),
+				parameters.cend()
+			)
+			,
+			ret
 		);
-		
-		return getResults(connection, state);
+		return ret;
 	}
 
 	std::optional<int64_t> getModId(mysql::tcp_ssl_connection& connection, net::HTTPHeaders const& headers) {
@@ -166,20 +151,19 @@ namespace {
 		)SQL";
 
 		auto statement = connection.prepare_statement(sql);
-		auto parametersView = asView(parameters);
-		mysql::execution_state state;
-		connection.start_statement_execution(
-			statement,
-			parametersView.begin(),
-			parametersView.end(),
-			state
+		mysql::results results;
+		connection.execute(
+			statement.bind(
+				parameters.cbegin(),
+				parameters.cend()
+			)
+			,
+			results
 		);
-		Results results = getResults(connection, state);
-
 		if (results.size() == 0) {
 			return {};
 		}
-		return results.at(0).at(0).as_int64();
+		return results.rows().at(0).at(0).as_int64();
 	}
 
 	template<typename T>
@@ -202,14 +186,10 @@ namespace {
 		else if constexpr (std::is_same_v<uint32_t, T>) {
 			return static_cast<uint32_t>(value.as_uint64());
 		}
+		else if constexpr (std::is_same_v<bool, T>) {
+			return static_cast<bool>(value.as_int64());
+		}
 		throw std::runtime_error("Unsupported type in get<T>");
-	}
-
-	std::optional<bool> getBool(mysql::field_view const& value) {
-		auto ret = get<int64_t>(value);
-		if (ret)
-			return *ret != 0;
-		return {};
 	}
 
 	template<typename T>
@@ -226,21 +206,7 @@ namespace {
 		var = get<T>(value);
 	}
 
-	template<>
-	void set<bool>(bool& var, mysql::field_view const& value) {
-		auto opt = getBool(value);
-		if (!opt) {
-			throw std::runtime_error("Null value for non-nullable field");
-		}
-		var = *opt;
-	}
-
-	template<>
-	void set<bool>(std::optional<bool>& var, mysql::field_view const& value) {
-		var = getBool(value);
-	}
-
-	void assignUnitData(mysql::row_view const& row, datatypes::UnitType& unit) {
+	void assignUnitData(mysql::row_view const& row, dTypes::UnitType& unit) {
 		set(unit.name, row[2]);
 		set(unit.cost, row[3]);
 		set(unit.maxFuel, row[4]);
@@ -259,22 +225,22 @@ namespace {
 		set(unit.stationaryFire, row[17]);
 	}
 
-	void assignUnitWeaponData(mysql::row_view const& row, datatypes::UnitType& unit) {
+	void assignUnitWeaponData(mysql::row_view const& row, dTypes::UnitType& unit) {
 		auto& newWeapon = unit.weapons->emplace_back();
 		set(newWeapon, row[3]);
 	}
 
-	void assignUnitClassificationData(mysql::row_view const& row, datatypes::UnitType& unit) {
+	void assignUnitClassificationData(mysql::row_view const& row, dTypes::UnitType& unit) {
 		auto& newClassification = unit.classifications.emplace_back();
 		set(newClassification, row[3]);
 	}
 
-	void assignUnitTransportListData(mysql::row_view const& row, datatypes::UnitType& unit) {
+	void assignUnitTransportListData(mysql::row_view const& row, dTypes::UnitType& unit) {
 		auto& newTransport = unit.transportList->emplace_back();
 		set(newTransport, row[3]);
 	}
 
-	void assignWeaponData(mysql::row_view const& row, datatypes::WeaponType& weapon) {
+	void assignWeaponData(mysql::row_view const& row, dTypes::WeaponType& weapon) {
 		set(weapon.name, row[2]);
 		set(weapon.ammoConsumed, row[3]);
 		set(weapon.maxRange, row[4]);
@@ -286,7 +252,7 @@ namespace {
 		set(weapon.flatDamage, row[10]);
 	}
 
-	void assignWeaponBaseDamageData(mysql::row_view const& row, datatypes::WeaponType& weapon) {
+	void assignWeaponBaseDamageData(mysql::row_view const& row, dTypes::WeaponType& weapon) {
 		std::string key;
 		int64_t value;
 		set(key, row[3]);
@@ -294,12 +260,12 @@ namespace {
 		weapon.baseDamage->emplace(key, value);
 	}
 
-	void assignWeaponStealthTargetsData(mysql::row_view const& row, datatypes::WeaponType& weapon) {
+	void assignWeaponStealthTargetsData(mysql::row_view const& row, dTypes::WeaponType& weapon) {
 		auto& newStealth = weapon.targetsStealth->emplace_back();
 		set(newStealth, row[3]);
 	}
 
-	void assignTerrainData(mysql::row_view const& row, datatypes::TerrainType& terrain) {
+	void assignTerrainData(mysql::row_view const& row, dTypes::TerrainType& terrain) {
 		set(terrain.name,row[2]);
 		set(terrain.stars,row[3]);
 		set(terrain.maxCapturePoints,row[4]);
@@ -317,7 +283,7 @@ namespace {
 		set(terrain.destroyedOrientation, row[16]);
 	}
 
-	void assignTerrainBuildRepairData(mysql::row_view const& row, datatypes::TerrainType& terrain) {
+	void assignTerrainBuildRepairData(mysql::row_view const& row, dTypes::TerrainType& terrain) {
 		auto type = *get<int64_t>(row[4]);
 		auto name = *get<std::string>(row[3]);
 		if (type == 2) {
@@ -332,13 +298,13 @@ namespace {
 		}
 	}
 
-	void assignTerrainActivationListData(mysql::row_view const& row, datatypes::TerrainType& terrain) {
+	void assignTerrainActivationListData(mysql::row_view const& row, dTypes::TerrainType& terrain) {
 		auto unitName = *get<std::string>(row[3]);
 		if (!terrain.activateList)
 			terrain.activateList.emplace();
 		terrain.activateList->push_back(unitName);
 	}
-	void assignTerrainActivationEffectData(mysql::row_view const& row, datatypes::TerrainType& terrain) {
+	void assignTerrainActivationEffectData(mysql::row_view const& row, dTypes::TerrainType& terrain) {
 		auto effectType = *get<std::string>(row[3]);
 		auto effectName = *get<std::string>(row[4]);
 		auto getEffectList = [&terrain, &effectType]() -> std::optional<std::vector<std::string>>&{
@@ -356,11 +322,11 @@ namespace {
 		effectList->push_back(effectName);
 	}
 
-	void assignMovementData(mysql::row_view const& row, datatypes::MovementClass& movement) {
+	void assignMovementData(mysql::row_view const& row, dTypes::MovementClass& movement) {
 		movement.name = *get<std::string>(row[2]);
 	}
 
-	void assignMovementCostData(mysql::row_view const& row, datatypes::MovementClass& movement) {
+	void assignMovementCostData(mysql::row_view const& row, dTypes::MovementClass& movement) {
 		auto variant = get<std::string>(row[5]);
 		auto cost = *get<int64_t>(row[4]);
 		auto terrain = *get<std::string>(row[3]);
@@ -374,17 +340,17 @@ namespace {
 		}
 	}
 
-	void assignPlayerData(mysql::row_view const& row, datatypes::PlayerType& player) {
+	void assignPlayerData(mysql::row_view const& row, dTypes::PlayerType& player) {
 		player.name = *get<std::string>(row[2]);
 		player.commanderTypeMod = get<std::string>(row[3]);
 		player.teamName = get<std::string>(row[4]);
 	}
 
-	void assignPlayerPermittedSlotData(mysql::row_view const& row, datatypes::PlayerType& player) {
+	void assignPlayerPermittedSlotData(mysql::row_view const& row, dTypes::PlayerType& player) {
 		player.permittedPlayerSlots->push_back(*get<std::string>(row[3]));
 	}
 
-	void assignPlayerCommanderTypeData(mysql::row_view const& row, datatypes::PlayerType& player) {
+	void assignPlayerCommanderTypeData(mysql::row_view const& row, dTypes::PlayerType& player) {
 		player.permittedCommanderTypes->push_back(*get<std::string>(row[3]));
 	}
 
@@ -425,7 +391,7 @@ namespace {
 		);
 		if (results.size() > 0) {
 			effect.targets.emplace();
-			for (auto const& row : results) {
+			for (auto const& row : results.rows()) {
 				assignTargetData(row, effect);
 			}
 		}
@@ -443,7 +409,7 @@ namespace {
 		);
 		if (results.size() > 0) {
 			effect.affects.emplace();
-			for (auto const& row : results) {
+			for (auto const& row : results.rows()) {
 				assignAffectData(row, effect);
 			}
 		}
@@ -461,7 +427,7 @@ namespace {
 		);
 		if (results.size() > 0) {
 			effect.classificationRequired.emplace();
-			for (auto const& row : results) {
+			for (auto const& row : results.rows()) {
 				assignClassificationData(row, effect);
 			}
 		}
@@ -479,7 +445,7 @@ namespace {
 		);
 		if (results.size() > 0) {
 			effect.terrainRequired.emplace();
-			for (auto const& row : results) {
+			for (auto const& row : results.rows()) {
 				assignTerrainRequiredData(row, effect);
 			}
 		}
@@ -497,13 +463,13 @@ namespace {
 		);
 		if (results.size() > 0) {
 			effect.unitTypeRequired.emplace();
-			for (auto const& row : results) {
+			for (auto const& row : results.rows()) {
 				assignUnitRequiredData(row, effect);
 			}
 		}
 	}
 
-	void assignPUEData(mysql::row_view const& row, datatypes::PassiveUnitEffect& effect) {
+	void assignPUEData(mysql::row_view const& row, dTypes::PassiveUnitEffect& effect) {
 		set(effect.name, row[2]);
 		set(effect.firepowerMod, row[3]);
 		set(effect.defenseMod, row[4]);
@@ -524,35 +490,52 @@ namespace {
 		set(effect.counterFirst, row[19]);
 		set(effect.captureRateMod, row[20]);
 		set(effect.unitCostMod, row[21]);
-		set(effect.hiddenHitPoints, row[22]);
-		set(effect.firepowerFromFunds, row[23]);
-		set(effect.defenseFromFunds, row[24]);
-		set(effect.fundsFromDamage, row[25]);
-		set(effect.coMeterChargeFromDealtDamage, row[26]);
-		set(effect.coMeterChargeFromReceivedDamage, row[27]);
+		set(effect.firepowerFromFunds, row[22]);
+		set(effect.defenseFromFunds, row[23]);
+		set(effect.fundsFromDamage, row[24]);
+		set(effect.coMeterChargeFromDealtDamage, row[25]);
+		set(effect.coMeterChargeFromReceivedDamage, row[26]);
 	}
 
-	void assignPUEDefenseFromTerrainData(mysql::row_view const& row, datatypes::PassiveUnitEffect& effect) {
+	void assignPUEDefenseFromTerrainData(mysql::row_view const& row, dTypes::PassiveUnitEffect& effect) {
 		effect.defenseFromOwnedTerrain->emplace(*get<std::string>(row[3]), *get<int64_t>(row[4]));
 	}
 
-	void assignPUEFirepowerFromTerrainData(mysql::row_view const& row, datatypes::PassiveUnitEffect& effect) {
+	void assignPUEFirepowerFromTerrainData(mysql::row_view const& row, dTypes::PassiveUnitEffect& effect) {
 		effect.firepowerFromOwnedTerrain->emplace(*get<std::string>(row[3]), *get<int64_t>(row[4]));
 	}
 
-	void assignPUEVisionVariantData(mysql::row_view const& row, datatypes::PassiveUnitEffect& effect) {
+	void assignPUEVisionVariantData(mysql::row_view const& row, dTypes::PassiveUnitEffect& effect) {
 		effect.visionVariantMods->emplace(*get<std::string>(row[3]), *get<int64_t>(row[4]));
 	}
 
-	void assignPUEFirepowerVariantData(mysql::row_view const& row, datatypes::PassiveUnitEffect& effect) {
+	void assignPUEFirepowerVariantData(mysql::row_view const& row, dTypes::PassiveUnitEffect& effect) {
 		effect.firepowerVariantMods->emplace(*get<std::string>(row[3]), *get<int64_t>(row[4]));
 	}
 
-	void assignPUEDefenseVariantData(mysql::row_view const& row, datatypes::PassiveUnitEffect& effect) {
+	void assignPUEDefenseVariantData(mysql::row_view const& row, dTypes::PassiveUnitEffect& effect) {
 		effect.defenseVariantMods->emplace(*get<std::string>(row[3]), *get<int64_t>(row[4]));
 	}
 
-	void assignAUEData(mysql::row_view const& row, datatypes::ActiveUnitEffect& effect) {
+	void assignPUEIntelData(mysql::row_view const& row, dTypes::PassiveUnitEffect& effect) {
+		auto intelType = *get<std::string>(row[3]);
+		auto selector = [&](std::string const& intelType) -> std::optional<std::vector<std::string>>&{
+			if (intelType == "hiddenHitPoints")
+				return effect.hiddenHitPoints;
+			if (intelType == "luckPointsVisible")
+				return effect.luckPointsVisible;
+			if (intelType == "hpPartVisible")
+				return effect.hpPartVisible;
+			throw std::runtime_error("Invalid entry in PUE_INTEL_REFERENCE table for INTELTYPE");
+		};
+		auto& intelOpt = selector(intelType);
+		if (!intelOpt) {
+			intelOpt.emplace();
+		}
+		intelOpt->push_back(*get<std::string>(row[4]));
+	}
+
+	void assignAUEData(mysql::row_view const& row, dTypes::ActiveUnitEffect& effect) {
 		set(effect.name, row[2]);
 		set(effect.hitPointMod, row[3]);
 		set(effect.roundHitPoints, row[4]);
@@ -560,9 +543,10 @@ namespace {
 		set(effect.halveFuel, row[6]);
 		set(effect.makeActive, row[7]);
 		set(effect.stunDuration, row[8]);
+		set(effect.coChargeFactor, row[9]);
 	}
 
-	void assignPTEData(mysql::row_view const& row, datatypes::PassiveTerrainEffect& effect) {
+	void assignPTEData(mysql::row_view const& row, dTypes::PassiveTerrainEffect& effect) {
 		set(effect.name, row[2]);
 		set(effect.incomeMod, row[3]);
 		set(effect.incomeFlatMod, row[4]);
@@ -572,29 +556,30 @@ namespace {
 		set(effect.buildCostMod, row[8]);
 	}
 
-	void assignPTEBuildListData(mysql::row_view const& row, datatypes::PassiveTerrainEffect& effect) {
+	void assignPTEBuildListData(mysql::row_view const& row, dTypes::PassiveTerrainEffect& effect) {
 		effect.buildListMod->push_back(*get<std::string>(row[3]));
 	}
 
-	void assignATEData(mysql::row_view const& row, datatypes::ActiveTerrainEffect& effect) {
+	void assignATEData(mysql::row_view const& row, dTypes::ActiveTerrainEffect& effect) {
 		set(effect.name, row[2]);
 		set(effect.unitSummonedName, row[3]);
 		set(effect.unitSummonedInitialDamage, row[4]);
 		set(effect.unitSummonedActive, row[5]);
 	}
 
-	void assignPGEData(mysql::row_view const& row, datatypes::PassiveGlobalEffect& effect) {
+	void assignPGEData(mysql::row_view const& row, dTypes::PassiveGlobalEffect& effect) {
 		set(effect.name, row[2]);
 		set(effect.variantMod, row[3]);
 		set(effect.movementClassVariantReplace, row[4]);
 		set(effect.movementClassVariantOverride, row[5]);
+		set(effect.minimumVisionMod, row[6]);
 	}
 
-	void assignPGEVariantHintData(mysql::row_view const& row, datatypes::PassiveGlobalEffect& effect) {
+	void assignPGEVariantHintData(mysql::row_view const& row, dTypes::PassiveGlobalEffect& effect) {
 		effect.variantHintMod->emplace(*get<std::string>(row[3]), *get<int64_t>(row[4]));
 	}
 
-	void assignAGEData(mysql::row_view const& row, datatypes::ActiveGlobalEffect& effect) {
+	void assignAGEData(mysql::row_view const& row, dTypes::ActiveGlobalEffect& effect) {
 		set(effect.name, row[2]);
 		set(effect.fundMod, row[3]);
 		set(effect.fundFlatMod, row[4]);
@@ -604,13 +589,14 @@ namespace {
 		set(effect.missileDamage, row[8]);
 		set(effect.missileAreaOfEffect, row[9]);
 		set(effect.missileStunDuration, row[10]);
+		set(effect.coChargeFactor, row[11]);
 	}
 
-	void assignAGEMissileTargetData(mysql::row_view const& row, datatypes::ActiveGlobalEffect& effect) {
+	void assignAGEMissileTargetData(mysql::row_view const& row, dTypes::ActiveGlobalEffect& effect) {
 		effect.missileTargetMethod->push_back(*get<std::string>(row[3]));
 	}
 
-	void assignCommanderData(mysql::row_view const& row, datatypes::CommanderType& commander) {
+	void assignCommanderData(mysql::row_view const& row, dTypes::CommanderType& commander) {
 		set(commander.name, row[2]);
 		set(commander.copCost, row[3]);
 		set(commander.scopCost, row[4]);
@@ -618,7 +604,7 @@ namespace {
 		set(commander.playable, row[6]);
 	}
 
-	void assignCommanderEffectData(mysql::row_view const& row, datatypes::CommanderType& commander) {
+	void assignCommanderEffectData(mysql::row_view const& row, dTypes::CommanderType& commander) {
 		std::string effectType = *get<std::string>(row[4]);
 		int32_t effectCategory = *get<int32_t>(row[5]);
 		auto selector = [&]() -> std::optional<std::vector<std::string>>&{
@@ -662,7 +648,7 @@ namespace {
 		vec->push_back(*get<std::string>(row[3]));
 	}
 
-	void assignSettingsData(mysql::row_view const& row, datatypes::Settings& setting) {
+	void assignSettingsData(mysql::row_view const& row, dTypes::Settings& setting) {
 		set(setting.name, row[2]);
 		set(setting.fogOfWar, row[3]);
 		set(setting.coPowers, row[4]);
@@ -676,7 +662,7 @@ namespace {
 		set(setting.coMeterMultiplier, row[12]);
 	}
 
-	void assignSettingsVariantData(mysql::row_view const& row, datatypes::Settings& setting) {
+	void assignSettingsVariantData(mysql::row_view const& row, dTypes::Settings& setting) {
 		setting.variant->emplace(*get<std::string>(row[3]), *get<int64_t>(row[4]));
 	}
 
@@ -686,16 +672,7 @@ namespace {
 		}
 		catch (mysql::error_with_diagnostics const& e) {
 			auto const& diagnostics = e.get_diagnostics();
-			throw net::RestError("There was a problem with the SQL request to the database: " + std::string(e.what()) + ": " + std::string(diagnostics.server_message()), net::RestError::Type::INTERNAL_ERROR);
-		}
-		catch (boost::system::system_error const& e) {
-			throw net::RestError("There was a problem requesting the Data: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
-		}
-		catch (std::invalid_argument const& e) {
-			throw net::RestError("There was a problem requesting the Data: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
-		}
-		catch (std::out_of_range const& e) {
-			throw net::RestError("There was a problem requesting the Data: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
+			throw net::RestError("Internal SQL Error: '" + std::string(e.get_diagnostics().client_message()) + "'/'" + std::string(e.get_diagnostics().server_message()) + "'", net::RestError::Type::INTERNAL_ERROR);
 		}
 		catch (std::runtime_error const& e) {
 			throw net::RestError("Unknown Error: " + std::string(e.what()), net::RestError::Type::INTERNAL_ERROR);
@@ -729,8 +706,8 @@ namespace {
 			*modId,
 			weaponName
 		);
-		std::vector<datatypes::WeaponType> weapons;
-		for (auto const& row : results) {
+		std::vector<dTypes::WeaponType> weapons;
+		for (auto const& row : results.rows()) {
 			auto& newWeapon = weapons.emplace_back();
 			assignWeaponData(row, newWeapon);
 			auto baseDamageResults = getReferenceLookup(
@@ -742,7 +719,7 @@ namespace {
 			);
 			if (baseDamageResults.size() > 0) {
 				newWeapon.baseDamage.emplace();
-				for (auto const& baseDamageRow : baseDamageResults) {
+				for (auto const& baseDamageRow : baseDamageResults.rows()) {
 					assignWeaponBaseDamageData(baseDamageRow, newWeapon);
 				}
 			}
@@ -755,7 +732,7 @@ namespace {
 			);
 			if (stealthTargetsResults.size() > 0) {
 				newWeapon.targetsStealth.emplace();
-				for (auto const& stealthTargetsRow : stealthTargetsResults) {
+				for (auto const& stealthTargetsRow : stealthTargetsResults.rows()) {
 					assignWeaponStealthTargetsData(stealthTargetsRow, newWeapon);
 				}
 			}
@@ -780,8 +757,8 @@ namespace {
 			unitName = ret->second;
 		}
 		auto results = getLookup(session.connection, "UNIT_TYPE", *modId, unitName);
-		std::vector<datatypes::UnitType> units;
-		for (auto const& row : results) {
+		std::vector<dTypes::UnitType> units;
+		for (auto const& row : results.rows()) {
 			auto& newUnit = units.emplace_back();
 			assignUnitData(row, newUnit);
 			auto weaponResults = getReferenceLookup(
@@ -795,7 +772,7 @@ namespace {
 			);
 			if (weaponResults.size() > 0) {
 				newUnit.weapons.emplace();
-				for (auto const& weaponRow : weaponResults) {
+				for (auto const& weaponRow : weaponResults.rows()) {
 					assignUnitWeaponData(weaponRow, newUnit);
 				}
 			}
@@ -806,7 +783,7 @@ namespace {
 				*modId,
 				newUnit.name
 			);
-			for (auto const& classificationRow : classificationResults) {
+			for (auto const& classificationRow : classificationResults.rows()) {
 				assignUnitClassificationData(classificationRow, newUnit);
 			}
 			auto transportListResults = getReferenceLookup(
@@ -818,7 +795,7 @@ namespace {
 			);
 			if (transportListResults.size() > 0) {
 				newUnit.transportList.emplace();
-				for (auto const& transportListRow : transportListResults) {
+				for (auto const& transportListRow : transportListResults.rows()) {
 					assignUnitTransportListData(transportListRow, newUnit);
 				}
 			}
@@ -842,14 +819,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("terrainName"); ret != headers.httpHeaders.end()) {
 			terrainName = ret->second;
 		}
-		std::vector<datatypes::TerrainType> terrains;
+		std::vector<dTypes::TerrainType> terrains;
 		auto results = getLookup(
 			session.connection,
 			"TERRAIN_TYPE",
 			*modId,
 			terrainName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newTerrain = terrains.emplace_back();
 			assignTerrainData(row, newTerrain);
 			auto buildRepairResults = getReferenceLookup(
@@ -861,7 +838,7 @@ namespace {
 				{},
 				"UNITORDER"
 			);
-			for (auto const& buildRepairRow : buildRepairResults) {
+			for (auto const& buildRepairRow : buildRepairResults.rows()) {
 				assignTerrainBuildRepairData(buildRepairRow, newTerrain);
 			}
 
@@ -872,7 +849,7 @@ namespace {
 				*modId,
 				newTerrain.name
 			);
-			for (auto const& activateListRow : activateListResults) {
+			for (auto const& activateListRow : activateListResults.rows()) {
 				assignTerrainActivationListData(activateListRow, newTerrain);
 			}
 
@@ -883,7 +860,7 @@ namespace {
 				*modId,
 				newTerrain.name
 			);
-			for (auto const& activateEffectRow : activateEffectResults) {
+			for (auto const& activateEffectRow : activateEffectResults.rows()) {
 				assignTerrainActivationEffectData(activateEffectRow, newTerrain);
 			}
 		}
@@ -906,14 +883,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("commanderName"); ret != headers.httpHeaders.end()) {
 			commanderName = ret->second;
 		}
-		std::vector<datatypes::CommanderType> commanders;
+		std::vector<dTypes::CommanderType> commanders;
 		auto results = getLookup(
 			session.connection,
 			"COMMANDER_TYPE",
 			*modId,
 			commanderName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newCommander = commanders.emplace_back();
 			assignCommanderData(row, newCommander);
 			auto commanderEffectResults = getReferenceLookup(
@@ -923,7 +900,7 @@ namespace {
 				*modId,
 				newCommander.name
 			);
-			for (auto const& commanderEffectRow : commanderEffectResults) {
+			for (auto const& commanderEffectRow : commanderEffectResults.rows()) {
 				assignCommanderEffectData(commanderEffectRow, newCommander);
 			}
 		}
@@ -946,14 +923,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("movementName"); ret != headers.httpHeaders.end()) {
 			movementName = ret->second;
 		}
-		std::vector<datatypes::MovementClass> movements;
+		std::vector<dTypes::MovementClass> movements;
 		auto results = getLookup(
 			session.connection,
 			"MOVEMENT_TYPE",
 			*modId,
 			movementName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newMovement = movements.emplace_back();
 			assignMovementData(row, newMovement);
 			auto movementCostResults = getReferenceLookup(
@@ -963,7 +940,7 @@ namespace {
 				*modId,
 				newMovement.name
 			);
-			for (auto const& movementCostRow : movementCostResults) {
+			for (auto const& movementCostRow : movementCostResults.rows()) {
 				assignMovementCostData(movementCostRow, newMovement);
 			}
 		}
@@ -986,14 +963,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("playerName"); ret != headers.httpHeaders.end()) {
 			playerName = ret->second;
 		}
-		std::vector<datatypes::PlayerType> players;
+		std::vector<dTypes::PlayerType> players;
 		auto results = getLookup(
 			session.connection,
 			"PLAYER_TYPE",
 			*modId,
 			playerName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newPlayer = players.emplace_back();
 			assignPlayerData(row, newPlayer);
 			auto permittedPlayerSlotsResults = getReferenceLookup(
@@ -1005,7 +982,7 @@ namespace {
 			);
 			if (permittedPlayerSlotsResults.size() > 0) {
 				newPlayer.permittedPlayerSlots.emplace();
-				for (auto const& permittedPlayerSlotRow : permittedPlayerSlotsResults) {
+				for (auto const& permittedPlayerSlotRow : permittedPlayerSlotsResults.rows()) {
 					assignPlayerPermittedSlotData(permittedPlayerSlotRow, newPlayer);
 				}
 			}
@@ -1019,7 +996,7 @@ namespace {
 			);
 			if (permittedCommanderResults.size() > 0) {
 				newPlayer.permittedCommanderTypes.emplace();
-				for (auto const& permittedCommanderRow : permittedCommanderResults) {
+				for (auto const& permittedCommanderRow : permittedCommanderResults.rows()) {
 					assignPlayerCommanderTypeData(permittedCommanderRow, newPlayer);
 				}
 			}
@@ -1043,14 +1020,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
 			effectName = ret->second;
 		}
-		std::vector<datatypes::PassiveUnitEffect> effects;
+		std::vector<dTypes::PassiveUnitEffect> effects;
 		auto results = getLookup(
 			session.connection,
 			"PASSIVE_UNIT_EFFECT",
 			*modId,
 			effectName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newEffect = effects.emplace_back();
 			assignPUEData(row, newEffect);
 			getEffectTargets(session.connection, newEffect, *modId, "PUE");
@@ -1067,7 +1044,7 @@ namespace {
 			);
 			if (firepowerTerrainResults.size() > 0) {
 				newEffect.firepowerFromOwnedTerrain.emplace();
-				for (auto const& sRow : firepowerTerrainResults) {
+				for (auto const& sRow : firepowerTerrainResults.rows()) {
 					assignPUEFirepowerFromTerrainData(sRow, newEffect);
 				}
 			}
@@ -1081,7 +1058,7 @@ namespace {
 			);
 			if (defenseTerrainResults.size() > 0) {
 				newEffect.defenseFromOwnedTerrain.emplace();
-				for (auto const& sRow : defenseTerrainResults) {
+				for (auto const& sRow : defenseTerrainResults.rows()) {
 					assignPUEDefenseFromTerrainData(sRow, newEffect);
 				}
 			}
@@ -1095,7 +1072,7 @@ namespace {
 			);
 			if (visionVariantResults.size() > 0) {
 				newEffect.visionVariantMods.emplace();
-				for (auto const& sRow : visionVariantResults) {
+				for (auto const& sRow : visionVariantResults.rows()) {
 					assignPUEVisionVariantData(sRow, newEffect);
 				}
 			}
@@ -1109,7 +1086,7 @@ namespace {
 			);
 			if (firepowerVariantResults.size() > 0) {
 				newEffect.firepowerVariantMods.emplace();
-				for (auto const& sRow : firepowerVariantResults) {
+				for (auto const& sRow : firepowerVariantResults.rows()) {
 					assignPUEFirepowerVariantData(sRow, newEffect);
 				}
 			}
@@ -1123,8 +1100,21 @@ namespace {
 			);
 			if (defenseVariantResults.size() > 0) {
 				newEffect.defenseVariantMods.emplace();
-				for (auto const& sRow : defenseVariantResults) {
+				for (auto const& sRow : defenseVariantResults.rows()) {
 					assignPUEDefenseVariantData(sRow, newEffect);
+				}
+			}
+
+			auto intelResults = getReferenceLookup(
+				session.connection,
+				"PUE_INTEL_REFERENCE",
+				"EFFECT_NAME",
+				*modId,
+				newEffect.name
+			);
+			if (intelResults.size() > 0) {
+				for (auto const& row : intelResults.rows()) {
+					assignPUEIntelData(row, newEffect);
 				}
 			}
 		}
@@ -1147,14 +1137,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
 			effectName = ret->second;
 		}
-		std::vector<datatypes::ActiveUnitEffect> effects;
+		std::vector<dTypes::ActiveUnitEffect> effects;
 		auto results = getLookup(
 			session.connection,
 			"ACTIVE_UNIT_EFFECT",
 			*modId,
 			effectName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newEffect = effects.emplace_back();
 			assignAUEData(row, newEffect);
 			getEffectTargets(session.connection, newEffect, *modId, "AUE");
@@ -1181,14 +1171,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
 			effectName = ret->second;
 		}
-		std::vector<datatypes::PassiveTerrainEffect> effects;
+		std::vector<dTypes::PassiveTerrainEffect> effects;
 		auto results = getLookup(
 			session.connection,
 			"PASSIVE_TERRAIN_EFFECT",
 			*modId,
 			effectName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newEffect = effects.emplace_back();
 			assignPTEData(row, newEffect);
 			getEffectTargets(session.connection, newEffect, *modId, "PTE");
@@ -1205,7 +1195,7 @@ namespace {
 			);
 			if (buildListResults.size() > 0) {
 				newEffect.buildListMod.emplace();
-				for (auto const& sRow : buildListResults) {
+				for (auto const& sRow : buildListResults.rows()) {
 					assignPTEBuildListData(sRow, newEffect);
 				}
 			}
@@ -1229,14 +1219,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
 			effectName = ret->second;
 		}
-		std::vector<datatypes::ActiveTerrainEffect> effects;
+		std::vector<dTypes::ActiveTerrainEffect> effects;
 		auto results = getLookup(
 			session.connection,
 			"ACTIVE_TERRAIN_EFFECT",
 			*modId,
 			effectName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newEffect = effects.emplace_back();
 			assignATEData(row, newEffect);
 			getEffectTargets(session.connection, newEffect, *modId, "ATE");
@@ -1262,14 +1252,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
 			effectName = ret->second;
 		}
-		std::vector<datatypes::PassiveGlobalEffect> effects;
+		std::vector<dTypes::PassiveGlobalEffect> effects;
 		auto results = getLookup(
 			session.connection,
 			"PASSIVE_GLOBAL_EFFECT",
 			*modId,
 			effectName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newEffect = effects.emplace_back();
 			assignPGEData(row, newEffect);
 			getEffectTargets(session.connection, newEffect, *modId, "PGE");
@@ -1283,7 +1273,7 @@ namespace {
 			);
 			if (variantHintResults.size() > 0) {
 				newEffect.variantHintMod.emplace();
-				for (auto const& sRow : variantHintResults) {
+				for (auto const& sRow : variantHintResults.rows()) {
 					assignPGEVariantHintData(sRow, newEffect);
 				}
 			}
@@ -1307,14 +1297,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("effectName"); ret != headers.httpHeaders.end()) {
 			effectName = ret->second;
 		}
-		std::vector<datatypes::ActiveGlobalEffect> effects;
+		std::vector<dTypes::ActiveGlobalEffect> effects;
 		auto results = getLookup(
 			session.connection,
 			"ACTIVE_GLOBAL_EFFECT",
 			*modId,
 			effectName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newEffect = effects.emplace_back();
 			assignAGEData(row, newEffect);
 			getEffectTargets(session.connection, newEffect, *modId, "AGE");
@@ -1328,7 +1318,7 @@ namespace {
 			);
 			if (missileTargetResults.size() > 0) {
 				newEffect.missileTargetMethod.emplace();
-				for (auto const& sRow : missileTargetResults) {
+				for (auto const& sRow : missileTargetResults.rows()) {
 					assignAGEMissileTargetData(sRow, newEffect);
 				}
 			}
@@ -1352,14 +1342,14 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("settingsName"); ret != headers.httpHeaders.end()) {
 			settingsName = ret->second;
 		}
-		std::vector<datatypes::Settings> settings;
+		std::vector<dTypes::Settings> settings;
 		auto results = getLookup(
 			session.connection,
 			"DEFAULT_GAME_SETTINGS",
 			*modId,
 			settingsName
 		);
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& newSettings = settings.emplace_back();
 			assignSettingsData(row, newSettings);
 
@@ -1372,7 +1362,7 @@ namespace {
 			);
 			if (settingsVariantResults.size() > 0) {
 				newSettings.variant.emplace();
-				for (auto const& sRow : settingsVariantResults) {
+				for (auto const& sRow : settingsVariantResults.rows()) {
 					assignSettingsVariantData(sRow, newSettings);
 				}
 			}
@@ -1402,7 +1392,7 @@ namespace {
 		)SQL";
 		auto statement = session.connection.prepare_statement(sql);
 		mysql::results results;
-		session.connection.execute_statement(statement, std::make_tuple(*modId), results);
+		session.connection.execute(statement.bind(*modId), results);
 		if (results.rows().size() > 0) {
 			auto row = results.rows().at(0);
 			boost::json::object ret;
@@ -1421,7 +1411,7 @@ namespace {
 		}
 	}
 
-	std::string get_text_resources_impl(net::HTTPHeaders const& headers) {
+	/*std::string get_text_resources_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
 		auto modId = getModId(session.connection, headers);
 		if (!modId) {
@@ -1439,7 +1429,7 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("language"); ret != headers.httpHeaders.end()) {
 			language = ret->second;
 		}
-		std::map<std::tuple<std::string, std::string, std::optional<std::string>>, datatypes::TextResource> resources;
+		std::map<std::tuple<std::string, std::string, std::optional<std::string>>, dTypes::TextResource> resources;
 		
 		std::string sql = R"SQL(
 			select
@@ -1498,7 +1488,7 @@ namespace {
 			set(type, row[3]);
 			set(language, row[7]);
 			auto it = resources.find(std::make_tuple(key, type, language));
-			datatypes::TextResource* ptr;
+			dTypes::TextResource* ptr;
 			if (it != resources.end()) {
 				ptr = &it->second;
 			}
@@ -1543,7 +1533,7 @@ namespace {
 		if (auto ret = headers.httpHeaders.find("army"); ret != headers.httpHeaders.end()) {
 			army = ret->second;
 		}
-		std::map<std::tuple<std::string, std::string, std::optional<std::string>, std::optional<int64_t>>, datatypes::ImageResource> resources;
+		std::map<std::tuple<std::string, std::string, std::optional<std::string>, std::optional<int64_t>>, dTypes::ImageResource> resources;
 
 		std::string sql = R"SQL(
 			select
@@ -1606,7 +1596,7 @@ namespace {
 			set(armyColor, row[4]);
 			set(orientation, row[7]);
 			auto it = resources.find(std::make_tuple(key, type, armyColor, orientation));
-			datatypes::ImageResource* ptr;
+			dTypes::ImageResource* ptr;
 			if (it != resources.end()) {
 				ptr = &it->second;
 			}
@@ -1635,7 +1625,7 @@ namespace {
 			ret.push_back(std::move(obj));
 		}
 		return boost::json::serialize(ret);
-	}
+	}*/
 }
 
 std::string rest::data::get_weapons(net::HTTPHeaders const& headers) {
@@ -1694,9 +1684,9 @@ std::string rest::data::get_mod_metadata(net::HTTPHeaders const& headers) {
 	return error_guard(get_mod_metadata_impl, headers);
 }
 
-std::string rest::data::get_text_resources(net::HTTPHeaders const& headers) {
-	return error_guard(get_text_resources_impl, headers);
-}
-std::string rest::data::get_image_resources(net::HTTPHeaders const& headers) {
-	return error_guard(get_image_resources_impl, headers);
-}
+//std::string rest::data::get_text_resources(net::HTTPHeaders const& headers) {
+//	return error_guard(get_text_resources_impl, headers);
+//}
+//std::string rest::data::get_image_resources(net::HTTPHeaders const& headers) {
+//	return error_guard(get_image_resources_impl, headers);
+//}

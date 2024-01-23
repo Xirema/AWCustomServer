@@ -146,6 +146,8 @@
     <ClInclude Include="include\Cert.h" />
     <ClInclude Include="include\CombatFunctions.h" />
     <ClInclude Include="include\DataTypes.h" />
+    <ClInclude Include="include\JsonSerializable.h" />
+    <ClInclude Include="include\jss\jssinclude.h" />
     <ClInclude Include="include\Properties.h" />
     <ClInclude Include="include\RestFunctions.h" />
     <ClInclude Include="include\RestServer.h" />

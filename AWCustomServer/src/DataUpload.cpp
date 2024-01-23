@@ -1,23 +1,20 @@
 #include<RestFunctions.h>
 #include<boost/json.hpp>
 #include<SQLUtil.h>
-#include<DataTypes.h>
+#include<jss/ModMetadata.h>
+#include<jss/Commander.h>
+#include<jss/Effect.h>
+#include<jss/Movement.h>
+#include<jss/Settings.h>
+#include<jss/Terrain.h>
+#include<jss/Unit.h>
 
 namespace {
 	const std::string secret_key = "a8f7af7d81269941f6d78eab35632eb0c603bd3ece95f8df7ab4a41ad187b06a";
+	const std::string supportedProtocol = "AWC000001";
 	namespace mysql = boost::mysql;
-	using ParameterPack = std::vector<mysql::field>;
 
-	std::vector<mysql::field_view> asView(ParameterPack const& parameters) {
-		std::vector<mysql::field_view> ret;
-		for (auto const& field : parameters) {
-			ret.emplace_back(field);
-		}
-		return ret;
-	}
-	uint64_t submitMetaData(boost::json::object const& obj, mysql::tcp_ssl_connection& connection) {
-		datatypes::ModMetadata metadata;
-		metadata.readFrom(obj);
+	uint64_t submitMetaData(dTypes::ModMetadata const& metadata, mysql::tcp_ssl_connection& connection) {
 		auto statement = connection.prepare_statement(R"SQL(
 			update 
 				DATA.MOD
@@ -28,7 +25,7 @@ namespace {
 				and EXPIRED is null
 		)SQL");
 		mysql::results results;
-		connection.execute_statement(statement, std::make_tuple(metadata.name), results);
+		connection.execute(statement.bind(metadata.name), results);
 
 		statement = connection.prepare_statement(R"SQL(
 			insert into 
@@ -38,337 +35,300 @@ namespace {
 				(?, ?)
 		)SQL");
 		results = {};
-		connection.execute_statement(statement, std::make_tuple(metadata.name, metadata.version), results);
-		return results.last_insert_id();
-	}
+		connection.execute(statement.bind(metadata.name, metadata.version), results);
+		uint64_t modId = results.last_insert_id();
 
-	template<typename T>
-	void sbind(T const& t, ParameterPack& parameters) {
-		if constexpr (std::is_same_v<bool, T>) {
-			if (t) {
-				parameters.emplace_back(1);
-			}
-			else {
-				parameters.emplace_back(0);
-			}
-		}
-		else {
-			parameters.emplace_back(t);
-		}
-	}
-
-	template<typename T>
-	void sbind(std::optional<T> const& opt, ParameterPack & parameters) {
-		if (opt) {
-			sbind(*opt, parameters);
-		}
-		else
-			parameters.emplace_back(nullptr);
-	}
-
-	template<typename ... T>
-	void bindAll(ParameterPack & parameters, T... vals) {
-		(sbind(vals, parameters), ...);
-	}
-
-	void submitUnitData(boost::json::array const& unitData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& unit : unitData) {
-			datatypes::UnitType unitType;
-			unitType.readFrom(unit.as_object());
-
-			auto unitInsertStatement = connection.prepare_statement(R"SQL(
+		if (metadata.defaultResourcePacks) {
+			int order = 0;
+			statement = connection.prepare_statement(R"SQL(
 				insert into
-					DATA.UNIT_TYPE
-					(
-						MOD_ID, NAME, COST, MAXFUEL, MAXAMMO, VISIONRANGE, MOVEMENTCLASS, MOVEMENTRANGE, FUELPERDAY, FUELPERDAYSTEALTH,
-						SUPPLYREPAIR, TRANSPORTCAPACITY, HITPOINTS, CAPTURESPEED, IGNORESVISIONOCCLUSION, STEALTHTYPE, STATIONARYFIRE
-					)
-				values 
-					(
-						?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-					)
+					DATA.MOD_DEFAULTPACK_REFERENCE
+					(MOD_ID, NAME, `ORDER`, VERSION)
+				values
+					(?, ?, ?, ?)
 			)SQL");
-			ParameterPack parameters;
-			bindAll(parameters, 
-				mod_id, 
-				unitType.name, 
-				unitType.cost, 
-				unitType.maxFuel, 
-				unitType.maxAmmo, 
-				unitType.visionRange,
-				unitType.movementClass, 
-				unitType.movementRange,
-				unitType.fuelPerDay,
-				unitType.fuelPerDayStealth,
-				unitType.supplyRepair,
-				unitType.transportCapacity,
-				unitType.hitPoints,
-				unitType.captureSpeed,
-				unitType.ignoresVisionOcclusion,
-				unitType.stealthType,
-				unitType.stationaryFire
-			);
-
-			mysql::results results;
-			mysql::execution_state state;
-
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(unitInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
+			for (auto const& defaultResourcePack : *metadata.defaultResourcePacks) {
+				results = {};
+				connection.execute(statement.bind(modId, metadata.name, order, metadata.version), results);
+				order++;
 			}
+		}
+		return modId;
+	}
+
+	void submitUnitData(std::vector<dTypes::UnitType> const& unitData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto unitInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.UNIT_TYPE
+				(
+					MOD_ID, NAME, COST, MAXFUEL, MAXAMMO, VISIONRANGE, MOVEMENTCLASS, MOVEMENTRANGE, FUELPERDAY, FUELPERDAYSTEALTH,
+					SUPPLYREPAIR, TRANSPORTCAPACITY, HITPOINTS, CAPTURESPEED, IGNORESVISIONOCCLUSION, STEALTHTYPE, STATIONARYFIRE
+				)
+			values 
+				(
+					?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+				)
+		)SQL");
+		auto unitWeaponInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.UNIT_WEAPON_REFERENCE
+				(
+					MOD_ID, UNITTYPE_NAME, WEAPONTYPE_NAME, WEAPONORDER
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		auto unitTransportListInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.UNIT_TRANSPORTLIST_REFERENCE
+				(
+					MOD_ID, UNITTYPE_NAME, TRANSPORTED_NAME
+				)
+			values
+				(
+					?, ?, ?
+				)
+		)SQL");
+		auto unitClassificationInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.UNIT_CLASSIFICATION_REFERENCE
+				(
+					MOD_ID, UNITTYPE_NAME, CLASSIFICATION
+				)
+			values
+				(
+					?, ?, ?
+				)
+		)SQL");
+		for (auto const& unitType : unitData) {
+			mysql::results results;
+			connection.execute(
+				unitInsertStatement.bind(
+					mod_id,
+					unitType.name,
+					unitType.cost,
+					unitType.maxFuel,
+					unitType.maxAmmo,
+					unitType.visionRange,
+					unitType.movementClass,
+					unitType.movementRange,
+					unitType.fuelPerDay,
+					unitType.fuelPerDayStealth,
+					unitType.supplyRepair,
+					unitType.transportCapacity,
+					unitType.hitPoints,
+					unitType.captureSpeed,
+					unitType.ignoresVisionOcclusion,
+					unitType.stealthType,
+					unitType.stationaryFire
+				)
+				,
+				results
+			);
 
 			if (unitType.weapons) {
 				int order = 0;
 				for (auto const& weapon : *unitType.weapons) {
-					auto unitWeaponInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.UNIT_WEAPON_REFERENCE
-							(
-								MOD_ID, UNITTYPE_NAME, WEAPONTYPE_NAME, WEAPONORDER
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(unitWeaponInsertStatement, std::make_tuple(mod_id, unitType.name, weapon, order), results);
+					connection.execute(unitWeaponInsertStatement.bind(mod_id, unitType.name, weapon, order), results);
 					order++;
 				}
 			}
 
 			if (unitType.transportList) {
 				for (auto const& transportableUnit : *unitType.transportList) {
-					auto unitTransportListInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.UNIT_TRANSPORTLIST_REFERENCE
-							(
-								MOD_ID, UNITTYPE_NAME, TRANSPORTED_NAME
-							)
-						values
-							(
-								?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(unitTransportListInsertStatement, std::make_tuple(mod_id, unitType.name, transportableUnit), results);
+					connection.execute(unitTransportListInsertStatement.bind(mod_id, unitType.name, transportableUnit), results);
 				}
 			}
 
 			for (auto const& classification : unitType.classifications) {
-				auto unitClassificationInsertStatement = connection.prepare_statement(R"SQL(
-					insert into
-						DATA.UNIT_CLASSIFICATION_REFERENCE
-						(
-							MOD_ID, UNITTYPE_NAME, CLASSIFICATION
-						)
-					values
-						(
-							?, ?, ?
-						)
-				)SQL");
 				mysql::results results;
-				connection.execute_statement(unitClassificationInsertStatement, std::make_tuple(mod_id, unitType.name, classification), results);
+				connection.execute(unitClassificationInsertStatement.bind(mod_id, unitType.name, classification), results);
 			}
 		}
 	}
 
-	void submitWeaponData(boost::json::array const& weaponData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& weapon : weaponData) {
-			datatypes::WeaponType weaponType;
-			weaponType.readFrom(weapon.as_object());
-
-			auto weaponInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.WEAPON_TYPE
-					(
-						MOD_ID, NAME, AMMOCONSUMED, MAXRANGE, MINRANGE, SELFTARGET, AFFECTEDBYLUCK, NONLETHAL, AREAOFEFFECT, FLATDAMAGE
-					)
-				values
-					(
-						?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-					)
-			)SQL");
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				weaponType.name,
-				weaponType.ammoConsumed,
-				weaponType.maxRange,
-				weaponType.minRange,
-				weaponType.selfTarget,
-				weaponType.affectedByLuck,
-				weaponType.nonLethal,
-				weaponType.areaOfEffect,
-				weaponType.flatDamage
+	void submitWeaponData(std::vector<dTypes::WeaponType> const& weaponData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto weaponInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.WEAPON_TYPE
+				(
+					MOD_ID, NAME, AMMOCONSUMED, MAXRANGE, MINRANGE, SELFTARGET, AFFECTEDBYLUCK, NONLETHAL, AREAOFEFFECT, FLATDAMAGE
+				)
+			values
+				(
+					?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+				)
+		)SQL");
+		auto weaponBaseDamageInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.WEAPON_BASEDAMAGE_REFERENCE
+				(
+					MOD_ID, WEAPONTYPE_NAME, UNITTYPE_NAME, DAMAGE
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		auto weaponTargetsStealthInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.WEAPON_STEALTHTARGET_REFERENCE
+				(
+					MOD_ID, WEAPONTYPE_NAME, STEALTHTYPE
+				)
+			values
+				(
+					?, ?, ?
+				)
+		)SQL");
+		for (auto const& weaponType : weaponData) {
+			mysql::results results;
+			connection.execute(
+				weaponInsertStatement.bind(
+					mod_id,
+					weaponType.name,
+					weaponType.ammoConsumed,
+					weaponType.maxRange,
+					weaponType.minRange,
+					weaponType.selfTarget,
+					weaponType.affectedByLuck,
+					weaponType.nonLethal,
+					weaponType.areaOfEffect,
+					weaponType.flatDamage
+				)
+				,
+				results
 			);
-			mysql::execution_state state;
-
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(weaponInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
 
 			if (weaponType.baseDamage) {
 				for (auto const& entry : *weaponType.baseDamage) {
-					auto weaponBaseDamageInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.WEAPON_BASEDAMAGE_REFERENCE
-							(
-								MOD_ID, WEAPONTYPE_NAME, UNITTYPE_NAME, DAMAGE
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(weaponBaseDamageInsertStatement, std::make_tuple(mod_id, weaponType.name, entry.first, entry.second), results);
+					connection.execute(weaponBaseDamageInsertStatement.bind(mod_id, weaponType.name, entry.first, entry.second), results);
 				}
 			}
 
 			if (weaponType.targetsStealth) {
 				for (auto const& targetsStealthValue : *weaponType.targetsStealth) {
-					auto weaponTargetsStealthInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.WEAPON_STEALTHTARGET_REFERENCE
-							(
-								MOD_ID, WEAPONTYPE_NAME, STEALTHTYPE
-							)
-						values
-							(
-								?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(weaponTargetsStealthInsertStatement, std::make_tuple(mod_id, weaponType.name, targetsStealthValue), results);
+					connection.execute(weaponTargetsStealthInsertStatement.bind(mod_id, weaponType.name, targetsStealthValue), results);
 				}
 			}
 		}
 	}
 
-	void submitTerrainData(boost::json::array const& terrainData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& terrain : terrainData) {
-			datatypes::TerrainType terrainType;
-			terrainType.readFrom(terrain.as_object());
-
-			auto terrainInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.TERRAIN_TYPE
-					(
-						MOD_ID, NAME, STARS, MAXCAPTUREPOINTS, SAMEAS, INCOME, REPAIR, OCCLUDESVISION, HITPOINTS, DESTROYED, 
-						DAMAGEDLIKE, ACTIVATIONMAX, ACTIVATIONCHANGE, LOSEIFCAPTURED, LOSEIFALLCAPTURED, DESTROYEDORIENTATION
-					)
-				values
-					(
-						?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-					)
-			)SQL");
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				terrainType.name,
-				terrainType.stars,
-				terrainType.maxCapturePoints,
-				terrainType.sameAs,
-				terrainType.income,
-				terrainType.repair,
-				terrainType.occludesVision,
-				terrainType.hitPoints,
-				terrainType.destroyed,
-				terrainType.damagedLike,
-				terrainType.activationMax,
-				terrainType.activationChange,
-				terrainType.loseIfCaptured,
-				terrainType.loseIfAllCaptured,
-				terrainType.destroyedOrientation
+	void submitTerrainData(std::vector<dTypes::TerrainType> const& terrainData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto terrainInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.TERRAIN_TYPE
+				(
+					MOD_ID, NAME, STARS, MAXCAPTUREPOINTS, SAMEAS, INCOME, REPAIR, OCCLUDESVISION, HITPOINTS, DESTROYED, 
+					DAMAGEDLIKE, ACTIVATIONMAX, ACTIVATIONCHANGE, LOSEIFCAPTURED, LOSEIFALLCAPTURED, DESTROYEDORIENTATION
+				)
+			values
+				(
+					?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+				)
+		)SQL");
+		auto terrainBuildInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.TERRAIN_BUILDREPAIR_REFERENCE
+				(
+					MOD_ID, TERRAINTYPE_NAME, UNITTYPE_NAME, UNITORDER, BUILDREPAIR
+				)
+			values
+				(
+					?, ?, ?, ?, 1
+				)
+		)SQL");
+		auto terrainRepairInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.TERRAIN_BUILDREPAIR_REFERENCE
+				(
+					MOD_ID, TERRAINTYPE_NAME, UNITTYPE_NAME, BUILDREPAIR
+				)
+			values
+				(
+					?, ?, ?, 2
+				)
+		)SQL");
+		auto terrainActivateListInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.TERRAIN_ACTIVATIONLIST_REFERENCE
+				(
+					MOD_ID, TERRAINTYPE_NAME, UNITTYPE_NAME
+				)
+			values
+				(
+					?, ?, ?
+				)
+		)SQL");
+		auto terrainActivateEffectInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.TERRAIN_ACTIVATIONEFFECT_REFERENCE
+				(
+					MOD_ID, TERRAINTYPE_NAME, EFFECT_TYPE, EFFECT_NAME
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		for (auto const& terrainType : terrainData) {
+			mysql::results results;
+			connection.execute(
+				terrainInsertStatement.bind(
+					mod_id,
+					terrainType.name,
+					terrainType.stars,
+					terrainType.maxCapturePoints,
+					terrainType.sameAs,
+					terrainType.income,
+					terrainType.repair,
+					terrainType.occludesVision,
+					terrainType.hitPoints,
+					terrainType.destroyed,
+					terrainType.damagedLike,
+					terrainType.activationMax,
+					terrainType.activationChange,
+					terrainType.loseIfCaptured,
+					terrainType.loseIfAllCaptured,
+					terrainType.destroyedOrientation
+				)
+				,
+				results
 			);
-			mysql::execution_state state;
-
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(terrainInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
 
 			if (terrainType.buildList) {
 				int order = 0;
 				for (auto const& buildUnit : *terrainType.buildList) {
-					auto terrainBuildInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.TERRAIN_BUILDREPAIR_REFERENCE
-							(
-								MOD_ID, TERRAINTYPE_NAME, UNITTYPE_NAME, UNITORDER, BUILDREPAIR
-							)
-						values
-							(
-								?, ?, ?, ?, 1
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(terrainBuildInsertStatement, std::make_tuple(mod_id, terrainType.name, buildUnit, order), results);
+					connection.execute(terrainBuildInsertStatement.bind(mod_id, terrainType.name, buildUnit, order), results);
 					order++;
 				}
 			}
 
 			if (terrainType.repairList) {
 				for (auto const& repairUnit : *terrainType.repairList) {
-					auto terrainRepairInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.TERRAIN_BUILDREPAIR_REFERENCE
-							(
-								MOD_ID, TERRAINTYPE_NAME, UNITTYPE_NAME, BUILDREPAIR
-							)
-						values
-							(
-								?, ?, ?, 2
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(terrainRepairInsertStatement, std::make_tuple(mod_id, terrainType.name, repairUnit), results);
+					connection.execute(terrainRepairInsertStatement.bind(mod_id, terrainType.name, repairUnit), results);
 				}
 			}
 
 			if (terrainType.activateList) {
 				for (auto const& activateUnit : *terrainType.activateList) {
-					auto terrainActivateListInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.TERRAIN_ACTIVATIONLIST_REFERENCE
-							(
-								MOD_ID, TERRAINTYPE_NAME, UNITTYPE_NAME
-							)
-						values
-							(
-								?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(terrainActivateListInsertStatement, std::make_tuple(mod_id, terrainType.name, activateUnit), results);
+					connection.execute(terrainActivateListInsertStatement.bind(mod_id, terrainType.name, activateUnit), results);
 				}
 			}
 
-			auto bindEffects = [&connection, &mod_id, &terrainType](std::vector<std::string> const& effectList, std::string_view effectType) {
+			auto bindEffects = [&connection, &mod_id, &terrainType, &terrainActivateEffectInsertStatement](std::vector<std::string> const& effectList, std::string_view effectType) {
 				for (auto const& activateEffect : effectList) {
-					auto terrainActivateEffectInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.TERRAIN_ACTIVATIONEFFECT_REFERENCE
-							(
-								MOD_ID, TERRAINTYPE_NAME, EFFECT_TYPE, EFFECT_NAME
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(terrainActivateEffectInsertStatement, std::make_tuple(mod_id, terrainType.name, effectType, activateEffect), results);
+					connection.execute(terrainActivateEffectInsertStatement.bind(mod_id, terrainType.name, effectType, activateEffect), results);
 				}
 			};
 
@@ -384,114 +344,102 @@ namespace {
 		}
 	}
 
-	void submitMovementData(boost::json::array const& movementData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& movement : movementData) {
-			datatypes::MovementClass movementClass;
-			movementClass.readFrom(movement.as_object());
-
-			auto movementInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.MOVEMENT_TYPE
-					(
-						MOD_ID, NAME
-					)
-				values
-					(
-						?, ?
-					)
-			)SQL");
+	void submitMovementData(std::vector<dTypes::MovementClass> const& movementData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto movementInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.MOVEMENT_TYPE
+				(
+					MOD_ID, NAME
+				)
+			values
+				(
+					?, ?
+				)
+		)SQL");
+		auto movementCostInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.MOVEMENT_COST_REFERENCE
+				(
+					MOD_ID, MOVEMENT_NAME, TERRAINTYPE_NAME, COST
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		auto movementCostVariantInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.MOVEMENT_COST_REFERENCE
+				(
+					MOD_ID, MOVEMENT_NAME, TERRAINTYPE_NAME, COST, VARIANT
+				)
+			values
+				(
+					?, ?, ?, ?, ?
+				)
+		)SQL");
+		for (auto const& movementClass : movementData) {
 			mysql::results results;
-			connection.execute_statement(movementInsertStatement, std::make_tuple(mod_id, movementClass.name), results);
+			connection.execute(movementInsertStatement.bind(mod_id, movementClass.name), results);
 
 			for (auto const& entry : movementClass.movementCosts) {
-				auto movementCostInsertStatement = connection.prepare_statement(R"SQL(
-					insert into
-						DATA.MOVEMENT_COST_REFERENCE
-						(
-							MOD_ID, MOVEMENT_NAME, TERRAINTYPE_NAME, COST
-						)
-					values
-						(
-							?, ?, ?, ?
-						)
-				)SQL");
 				mysql::results results;
-				connection.execute_statement(movementCostInsertStatement, std::make_tuple(mod_id, movementClass.name, entry.first, entry.second), results);
+				connection.execute(movementCostInsertStatement.bind(mod_id, movementClass.name, entry.first, entry.second), results);
 			}
 
 			if (movementClass.variantMods) {
 				for (auto const& [variantName, map] : *movementClass.variantMods) {
 					for (auto const& [terrainName, costMod] : map) {
-
-						auto movementCostInsertStatement = connection.prepare_statement(R"SQL(
-							insert into
-								DATA.MOVEMENT_COST_REFERENCE
-								(
-									MOD_ID, MOVEMENT_NAME, TERRAINTYPE_NAME, COST, VARIANT
-								)
-							values
-								(
-									?, ?, ?, ?, ?
-								)
-						)SQL");
 						mysql::results results;
-						connection.execute_statement(movementCostInsertStatement, std::make_tuple(mod_id, movementClass.name, terrainName, costMod, variantName), results);
+						connection.execute(movementCostVariantInsertStatement.bind(mod_id, movementClass.name, terrainName, costMod, variantName), results);
 					}
 				}
 			}
 		}
 	}
 
-	void submitCommanderData(boost::json::array const& commanderData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& commander : commanderData) {
-			datatypes::CommanderType commanderType;
-			commanderType.readFrom(commander.as_object());
-
-			auto commanderInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.COMMANDER_TYPE
-					(
-						MOD_ID, NAME, COPCOST, SCOPCOST, COMETERMULTIPLIER, PLAYABLE
-					)
-				values
-					(
-						?, ?, ?, ?, ?, ?
-					)
-			)SQL");
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				commanderType.name,
-				commanderType.copCost,
-				commanderType.scopCost,
-				commanderType.coMeterMultiplier,
-				commanderType.playable
+	void submitCommanderData(std::vector<dTypes::CommanderType> const& commanderData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto commanderInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.COMMANDER_TYPE
+				(
+					MOD_ID, NAME, COPCOST, SCOPCOST, COMETERMULTIPLIER, PLAYABLE
+				)
+			values
+				(
+					?, ?, ?, ?, ?, ?
+				)
+		)SQL");
+		auto effectInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.COMMANDER_EFFECT_REFERENCE
+				(
+					MOD_ID, COMMANDER_NAME, EFFECT_NAME, EFFECT_TYPE, EFFECT_CATEGORY
+				)
+			values
+				(
+					?, ?, ?, ?, ?
+				)
+		)SQL");
+		for (auto const& commanderType : commanderData) {
+			mysql::results results;
+			connection.execute(
+				commanderInsertStatement.bind(
+					mod_id,
+					commanderType.name,
+					commanderType.copCost,
+					commanderType.scopCost,
+					commanderType.coMeterMultiplier,
+					commanderType.playable
+				)
+				,
+				results
 			);
-			mysql::execution_state state;
 
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(commanderInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
-
-			auto insertEffects = [&connection, &commanderType, mod_id](std::vector<std::string> const& effects, std::string_view effectType, int effectCategory) {
+			auto insertEffects = [&connection, &commanderType, mod_id, &effectInsertStatement](std::vector<std::string> const& effects, std::string_view effectType, int effectCategory) {
 				for (auto const& effect : effects) {
-					auto effectInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.COMMANDER_EFFECT_REFERENCE
-							(
-								MOD_ID, COMMANDER_NAME, EFFECT_NAME, EFFECT_TYPE, EFFECT_CATEGORY
-							)
-						values
-							(
-								?, ?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(effectInsertStatement, std::make_tuple(mod_id, commanderType.name, effect, effectType, effectCategory), results);
+					connection.execute(effectInsertStatement.bind(mod_id, commanderType.name, effect, effectType, effectCategory), results);
 				}
 			};
 			if (commanderType.passiveUnitEffectsD2d)
@@ -529,229 +477,279 @@ namespace {
 		}
 	}
 
-	void submitPlayerData(boost::json::array const& playerData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& player : playerData) {
-			datatypes::PlayerType playerType;
-			playerType.readFrom(player.as_object());
-
-			auto playerInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.PLAYER_TYPE
-					(
-						MOD_ID, NAME, COMMANDERTYPEMOD, TEAMNAME
-					)
-				values
-					(
-						?, ?, ?, ?
-					)
-			)SQL");
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				playerType.name,
-				playerType.commanderTypeMod,
-				playerType.teamName
+	void submitPlayerData(std::vector<dTypes::PlayerType> const& playerData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto playerInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PLAYER_TYPE
+				(
+					MOD_ID, NAME, COMMANDERTYPEMOD, TEAMNAME
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		auto playerSlotInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PLAYER_PERMITTEDPLAYERSLOT_REFERENCE
+				(
+					MOD_ID, PLAYERTYPE_NAME, PERMITTEDPLAYERSLOT
+				)
+			values
+				(
+					?, ?, ?
+				)
+		)SQL");
+		auto commanderTypeInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PLAYER_PERMITTEDCOMMANDERTYPE_REFERENCE
+				(
+					MOD_ID, PLAYERTYPE_NAME, PERMITTEDCOMMANDERTYPE
+				)
+			values
+				(
+					?, ?, ?
+				)
+		)SQL");
+		for (auto const& playerType : playerData) {
+			mysql::results results;
+			connection.execute(
+				playerInsertStatement.bind(
+					mod_id,
+					playerType.name,
+					playerType.commanderTypeMod,
+					playerType.teamName
+				)
+				,
+				results
 			);
-			mysql::execution_state state;
-
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(playerInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
 
 			if (playerType.permittedPlayerSlots) {
 				for (auto const& playerSlot : *playerType.permittedPlayerSlots) {
-					auto playerSlotInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.PLAYER_PERMITTEDPLAYERSLOT_REFERENCE
-							(
-								MOD_ID, PLAYERTYPE_NAME, PERMITTEDPLAYERSLOT
-							)
-						values
-							(
-								?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(playerSlotInsertStatement, std::make_tuple(mod_id, playerType.name, playerSlot), results);
+					connection.execute(playerSlotInsertStatement.bind(mod_id, playerType.name, playerSlot), results);
 				}
 			}
 
 			if (playerType.permittedCommanderTypes) {
 				for (auto const& commanderType : *playerType.permittedCommanderTypes) {
-					auto commanderTypeInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.PLAYER_PERMITTEDCOMMANDERTYPE_REFERENCE
-							(
-								MOD_ID, PLAYERTYPE_NAME, PERMITTEDCOMMANDERTYPE
-							)
-						values
-							(
-								?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(commanderTypeInsertStatement, std::make_tuple(mod_id, playerType.name, commanderType), results);
+					connection.execute(commanderTypeInsertStatement.bind(mod_id, playerType.name, commanderType), results);
 				}
 			}
 		}
 	}
 
 	void insertEffectTargets(mysql::tcp_ssl_connection & connection, uint64_t mod_id, std::string_view effectName, std::string_view effectType, std::vector<std::string> const& targetArray) {
+		auto effectTargetInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.EFFECT_TARGET_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, EFFECT_TYPE, TARGET
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
 		for (auto const& target : targetArray) {
-			auto effectTargetInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.EFFECT_TARGET_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, EFFECT_TYPE, TARGET
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 			mysql::results results;
-			connection.execute_statement(effectTargetInsertStatement, std::make_tuple(mod_id, effectName, effectType, target), results);
+			connection.execute(effectTargetInsertStatement.bind(mod_id, effectName, effectType, target), results);
 		}
 	}
 	void insertEffectAffects(mysql::tcp_ssl_connection & connection, uint64_t mod_id, std::string_view effectName, std::string_view effectType, std::vector<std::string> const& affectArray) {
+		auto effectTargetInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.EFFECT_AFFECT_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, EFFECT_TYPE, AFFECTS
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
 		for (auto const& affect : affectArray) {
-			auto effectTargetInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.EFFECT_AFFECT_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, EFFECT_TYPE, AFFECTS
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 			mysql::results results;
-			connection.execute_statement(effectTargetInsertStatement, std::make_tuple(mod_id, effectName, effectType, affect), results);
+			connection.execute(effectTargetInsertStatement.bind(mod_id, effectName, effectType, affect), results);
 		}
 	}
 
 	void insertEffectUnitTypeRequired(mysql::tcp_ssl_connection & connection, uint64_t mod_id, std::string_view effectName, std::string_view effectType, std::vector<std::string> const& unitTypeArray) {
+		auto effectUnitTypeInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.EFFECT_UNITTYPEREQUIRED_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, EFFECT_TYPE, UNITTYPE_NAME
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
 		for (auto const& unitType : unitTypeArray) {
-			auto effectUnitTypeInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.EFFECT_UNITTYPEREQUIRED_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, EFFECT_TYPE, UNITTYPE_NAME
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 			mysql::results results;
-			connection.execute_statement(effectUnitTypeInsertStatement, std::make_tuple(mod_id, effectName, effectType, unitType), results);
+			connection.execute(effectUnitTypeInsertStatement.bind(mod_id, effectName, effectType, unitType), results);
 		}
 	}
 
 	void insertEffectClassification(mysql::tcp_ssl_connection & connection, uint64_t mod_id, std::string_view effectName, std::string_view effectType, std::vector<std::string> const& classificationArray) {
+		auto insertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.EFFECT_CLASSIFICATION_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, EFFECT_TYPE, CLASSIFICATION
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
 		for (auto const& classification : classificationArray) {
-			auto insertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.EFFECT_CLASSIFICATION_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, EFFECT_TYPE, CLASSIFICATION
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 			mysql::results results;
-			connection.execute_statement(insertStatement, std::make_tuple(mod_id, effectName, effectType, classification), results);
+			connection.execute(insertStatement.bind(mod_id, effectName, effectType, classification), results);
 		}
 	}
 
 	void insertEffectTerrainRequired(mysql::tcp_ssl_connection & connection, uint64_t mod_id, std::string_view effectName, std::string_view effectType, std::vector<std::string> const& terrainArray) {
+		auto insertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.EFFECT_TERRAIN_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, EFFECT_TYPE, TERRAINTYPE_NAME
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
 		for (auto const& terrain : terrainArray) {
-			auto insertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.EFFECT_TERRAIN_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, EFFECT_TYPE, TERRAINTYPE_NAME
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 			mysql::results results;
-			connection.execute_statement(insertStatement, std::make_tuple(mod_id, effectName, effectType, terrain), results);
+			connection.execute(insertStatement.bind(mod_id, effectName, effectType, terrain), results);
 		}
 	}
 
-	void submitPassiveUnitEffectData(boost::json::array const& passiveUnitEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& passiveUnitEffect : passiveUnitEffectData) {
-			datatypes::PassiveUnitEffect pue;
-			pue.readFrom(passiveUnitEffect.as_object());
+	void submitPassiveUnitEffectData(std::vector<dTypes::PassiveUnitEffect> const& passiveUnitEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto passiveUnitEffectInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PASSIVE_UNIT_EFFECT
+				(
+					MOD_ID, NAME, FIREPOWERMOD, DEFENSEMOD, INDIRECTDEFENSEMOD, MINRANGEMOD, MAXRANGEMOD, FUELUSEMOD, AMMOUSEMOD, GOODLUCKMOD, BADLUCKMOD,
+					MOVEMENTMOD, VISIONMOD, TERRAINSTARSMOD, TERRAINSTARSFLATMOD, TERRAINSTARSDEFENSE, TERRAINSTARSFIREPOWER, COUNTERFIREMOD, COUNTERFIRST,
+					CAPTURERATEMOD, UNITCOSTMOD, FIREPOWERFROMFUNDS, DEFENSEFROMFUNDS, FUNDSFROMDAMAGE, COMETERCHARGEFROMDEALTDAMAGE,
+					COMETERCHARGEFROMRECEIVEDDAMAGE
+				)
+			VALUES
+				(
+					?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+					?, ?, ?, ?, ?, ?, ?, ?,
+					?, ?, ?, ?, ?, ?,
+					?
+				)
+		)SQL");
+		auto firepowerTerrainInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PUE_FIREPOWERFROMTERRAIN_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, TERRAINTYPE_NAME, FIREPOWERMOD
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		auto defenseTerrainInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PUE_DEFENSEFROMTERRAIN_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, TERRAINTYPE_NAME, DEFENSEMOD
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		auto visionVariantInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PUE_VISIONVARIANT_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, VARIANT, VISIONMOD
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		auto firepowerVariantInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PUE_FIREPOWERVARIANT_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, VARIANT, FIREPOWERMOD
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		auto defenseVariantInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PUE_DEFENSEVARIANT_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, VARIANT, DEFENSEMOD
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		auto intelInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PUE_INTEL_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, INTEL_TYPE, TARGET
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		for (auto const& pue : passiveUnitEffectData) {
+			mysql::results results;
+			connection.execute(
+				passiveUnitEffectInsertStatement.bind(
+					mod_id,
+					pue.name,
+					pue.firepowerMod,
+					pue.defenseMod,
+					pue.indirectDefenseMod,
+					pue.minRangeMod,
+					pue.maxRangeMod,
+					pue.fuelUseMod,
+					pue.ammoUseMod,
+					pue.goodLuckMod,
+					pue.badLuckMod,
 
-			auto passiveUnitEffectInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.PASSIVE_UNIT_EFFECT
-					(
-						MOD_ID, NAME, FIREPOWERMOD, DEFENSEMOD, INDIRECTDEFENSEMOD, MINRANGEMOD, MAXRANGEMOD, FUELUSEMOD, AMMOUSEMOD, GOODLUCKMOD, BADLUCKMOD,
-						MOVEMENTMOD, VISIONMOD, TERRAINSTARSMOD, TERRAINSTARSFLATMOD, TERRAINSTARSDEFENSE, TERRAINSTARSFIREPOWER, COUNTERFIREMOD, COUNTERFIRST,
-						CAPTURERATEMOD, UNITCOSTMOD, HIDDENHITPOINTS, FIREPOWERFROMFUNDS, DEFENSEFROMFUNDS, FUNDSFROMDAMAGE, COMETERCHARGEFROMDEALTDAMAGE,
-						COMETERCHARGEFROMRECEIVEDDAMAGE
-					)
-				VALUES
-					(
-						?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
-						?, ?, ?, ?, ?, ?, ?, ?,
-						?, ?, ?, ?, ?, ?, ?,
-						?
-					)
-			)SQL");
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				pue.name, 
-				pue.firepowerMod,
-				pue.defenseMod,
-				pue.indirectDefenseMod,
-				pue.minRangeMod,
-				pue.maxRangeMod,
-				pue.fuelUseMod,
-				pue.ammoUseMod,
-				pue.goodLuckMod,
-				pue.badLuckMod,
+					pue.movementMod,
+					pue.visionMod,
+					pue.terrainStarsMod,
+					pue.terrainStarsFlatMod,
+					pue.terrainStarsDefense,
+					pue.terrainStarsFirepower,
+					pue.counterfireMod,
+					pue.counterFirst,
 
-				pue.movementMod,
-				pue.visionMod,
-				pue.terrainStarsMod,
-				pue.terrainStarsFlatMod,
-				pue.terrainStarsDefense,
-				pue.terrainStarsFirepower,
-				pue.counterfireMod,
-				pue.counterFirst,
+					pue.captureRateMod,
+					pue.unitCostMod,
+					pue.firepowerFromFunds,
+					pue.defenseFromFunds,
+					pue.fundsFromDamage,
+					pue.coMeterChargeFromDealtDamage,
 
-				pue.captureRateMod,
-				pue.unitCostMod,
-				pue.hiddenHitPoints,
-				pue.firepowerFromFunds,
-				pue.defenseFromFunds,
-				pue.fundsFromDamage,
-				pue.coMeterChargeFromDealtDamage,
-
-				pue.coMeterChargeFromReceivedDamage
+					pue.coMeterChargeFromReceivedDamage
+				)
+				,
+				results
 			);
-			mysql::execution_state state;
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(passiveUnitEffectInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
 
 			if (pue.targets) {
 				insertEffectTargets(connection, mod_id, pue.name, "PUE", *pue.targets);
@@ -768,129 +766,84 @@ namespace {
 
 			if (pue.firepowerFromOwnedTerrain) {
 				for (auto const& [terrainName, firepowerMod] : *pue.firepowerFromOwnedTerrain) {
-					auto insertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.PUE_FIREPOWERFROMTERRAIN_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, TERRAINTYPE_NAME, FIREPOWERMOD
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(insertStatement, std::make_tuple(mod_id, pue.name, terrainName, firepowerMod), results);
+					connection.execute(firepowerTerrainInsertStatement.bind(mod_id, pue.name, terrainName, firepowerMod), results);
 				}
 			}
 			if (pue.defenseFromOwnedTerrain) {
 				for (auto const& [terrainName, defenseMod] : *pue.defenseFromOwnedTerrain) {
-
-					auto insertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.PUE_DEFENSEFROMTERRAIN_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, TERRAINTYPE_NAME, DEFENSEMOD
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(insertStatement, std::make_tuple(mod_id, pue.name, terrainName, defenseMod), results);
+					connection.execute(defenseTerrainInsertStatement.bind(mod_id, pue.name, terrainName, defenseMod), results);
 				}
 			}
 			if (pue.visionVariantMods) {
 				for (auto const& [variantName, visionMod] : *pue.visionVariantMods) {
-					auto insertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.PUE_VISIONVARIANT_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, VARIANT, VISIONMOD
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(insertStatement, std::make_tuple(mod_id, pue.name, variantName, visionMod), results);
+					connection.execute(visionVariantInsertStatement.bind(mod_id, pue.name, variantName, visionMod), results);
 				}
 			}
 			if (pue.firepowerVariantMods) {
 				for (auto const& [variantName, firepowerMod] : *pue.firepowerVariantMods) {
-					auto insertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.PUE_FIREPOWERVARIANT_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, VARIANT, FIREPOWERMOD
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(insertStatement, std::make_tuple(mod_id, pue.name, variantName, firepowerMod), results);
+					connection.execute(firepowerVariantInsertStatement.bind(mod_id, pue.name, variantName, firepowerMod), results);
 				}
 			}
 			if (pue.defenseVariantMods) {
 				for (auto const& [variantName, defenseMod] : *pue.defenseVariantMods) {
-					auto insertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.PUE_DEFENSEVARIANT_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, VARIANT, DEFENSEMOD
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(insertStatement, std::make_tuple(mod_id, pue.name, variantName, defenseMod), results);
+					connection.execute(defenseVariantInsertStatement.bind(mod_id, pue.name, variantName, defenseMod), results);
+				}
+			}
+			if (pue.hiddenHitPoints) {
+				for (auto const& hidden : *pue.hiddenHitPoints) {
+					mysql::results results;
+					connection.execute(intelInsertStatement.bind(mod_id, pue.name, "hiddenHitPoints", hidden), results);
+				}
+			}
+			if (pue.luckPointsVisible) {
+				for (auto const& luckPoints : *pue.luckPointsVisible) {
+					mysql::results results;
+					connection.execute(intelInsertStatement.bind(mod_id, pue.name, "luckPointsVisible", luckPoints), results);
+				}
+			}
+			if (pue.hpPartVisible) {
+				for (auto const& hpPart : *pue.hpPartVisible) {
+					mysql::results results;
+					connection.execute(intelInsertStatement.bind(mod_id, pue.name, "hpPartVisible", hpPart), results);
 				}
 			}
 		}
 	}
 
-	void submitActiveUnitEffectData(boost::json::array const& activeUnitEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& activeUnitEffect : activeUnitEffectData) {
-			datatypes::ActiveUnitEffect aue;
-			aue.readFrom(activeUnitEffect.as_object());
-
-			auto activeUnitEffectInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.ACTIVE_UNIT_EFFECT
-					(
-						MOD_ID, NAME, HITPOINTMOD, ROUNDHITPOINTS, RESUPPLY, HALVEFUEL, MAKEACTIVE, STUNDURATION
-					)
-				values
-					(
-						?, ?, ?, ?, ?, ?, ?, ?
-					)
-			)SQL");
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				aue.name,
-				aue.hitPointMod,
-				aue.roundHitPoints,
-				aue.resupply,
-				aue.halveFuel,
-				aue.makeActive,
-				aue.stunDuration
+	void submitActiveUnitEffectData(std::vector<dTypes::ActiveUnitEffect> const& activeUnitEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto activeUnitEffectInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.ACTIVE_UNIT_EFFECT
+				(
+					MOD_ID, NAME, HITPOINTMOD, ROUNDHITPOINTS, RESUPPLY, HALVEFUEL, MAKEACTIVE, STUNDURATION, COCHARGEFACTOR
+				)
+			values
+				(
+					?, ?, ?, ?, ?, ?, ?, ?, ?
+				)
+		)SQL");
+		for (auto const& aue : activeUnitEffectData) {
+			mysql::results results;
+			connection.execute(
+				activeUnitEffectInsertStatement.bind(
+					mod_id,
+					aue.name,
+					aue.hitPointMod,
+					aue.roundHitPoints,
+					aue.resupply,
+					aue.halveFuel,
+					aue.makeActive,
+					aue.stunDuration,
+					aue.coChargeFactor
+				)
+				,
+				results
 			);
-
-			mysql::execution_state state;
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(activeUnitEffectInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
 
 			if (aue.targets) {
 				insertEffectTargets(connection, mod_id, aue.name, "AUE", *aue.targets);
@@ -907,42 +860,45 @@ namespace {
 		}
 	}
 
-	void submitPassiveTerrainEffectData(boost::json::array const& passiveTerrainEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& passiveTerrainEffect : passiveTerrainEffectData) {
-			datatypes::PassiveTerrainEffect pte;
-			pte.readFrom(passiveTerrainEffect.as_object());
-
-			auto passiveTerrainEffectInsertStatement = connection.prepare_statement(R"SQL(
-				insert into 
-					DATA.PASSIVE_TERRAIN_EFFECT
-					(
-						MOD_ID, NAME, INCOMEMOD, INCOMEFLATMOD, REPAIRMOD, OCCLUDESVISIONMOD, VISIONMODBOOST, BUILDCOSTMOD
-					)
-				values
-					(
-						?, ?, ?, ?, ?, ?, ?, ?
-					)
-			)SQL");
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				pte.name,
-				pte.incomeMod,
-				pte.incomeFlatMod,
-				pte.repairMod,
-				pte.occludesVisionMod,
-				pte.visionModBoost,
-				pte.buildCostMod
+	void submitPassiveTerrainEffectData(std::vector<dTypes::PassiveTerrainEffect> const& passiveTerrainEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto passiveTerrainEffectInsertStatement = connection.prepare_statement(R"SQL(
+			insert into 
+				DATA.PASSIVE_TERRAIN_EFFECT
+				(
+					MOD_ID, NAME, INCOMEMOD, INCOMEFLATMOD, REPAIRMOD, OCCLUDESVISIONMOD, VISIONMODBOOST, BUILDCOSTMOD
+				)
+			values
+				(
+					?, ?, ?, ?, ?, ?, ?, ?
+				)
+		)SQL");
+		auto pteBuildListInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PTE_BUILDLISTMOD_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, UNITTYPE_NAME
+				)
+			values
+				(
+					?, ?, ?
+				)
+		)SQL");
+		for (auto const& pte : passiveTerrainEffectData) {
+			mysql::results results;
+			connection.execute(
+				passiveTerrainEffectInsertStatement.bind(
+					mod_id,
+					pte.name,
+					pte.incomeMod,
+					pte.incomeFlatMod,
+					pte.repairMod,
+					pte.occludesVisionMod,
+					pte.visionModBoost,
+					pte.buildCostMod
+				)
+				,
+				results
 			);
-
-			mysql::execution_state state;
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(passiveTerrainEffectInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
 
 			if (pte.targets) {
 				insertEffectTargets(connection, mod_id, pte.name, "PTE", *pte.targets);
@@ -959,58 +915,38 @@ namespace {
 
 			if (pte.buildListMod) {
 				for (auto const& buildListItem : *pte.buildListMod) {
-					auto pteBuildListInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.PTE_BUILDLISTMOD_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, UNITTYPE_NAME
-							)
-						values
-							(
-								?, ?, ?
-							)
-					)SQL");
-
 					mysql::results results;
-					connection.execute_statement(pteBuildListInsertStatement, std::make_tuple(mod_id, pte.name, buildListItem), results);
+					connection.execute(pteBuildListInsertStatement.bind(mod_id, pte.name, buildListItem), results);
 				}
 			}
 		}
 	}
 
-	void submitActiveTerrainEffectData(boost::json::array const& activeTerrainEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for(auto const& activeTerrainEffect : activeTerrainEffectData) {
-			datatypes::ActiveTerrainEffect ate;
-			ate.readFrom(activeTerrainEffect.as_object());
-
-			auto activeTerrainEffectInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.ACTIVE_TERRAIN_EFFECT
-					(
-						MOD_ID, NAME, UNITSUMMONEDNAME, UNITSUMMONEDINITIALDAMAGE, UNITSUMMONEDACTIVE
-					)
-				values
-					(
-						?, ?, ?, ?, ?
-					)
-			)SQL");
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				ate.name,
-				ate.unitSummonedName,
-				ate.unitSummonedInitialDamage,
-				ate.unitSummonedActive
+	void submitActiveTerrainEffectData(std::vector<dTypes::ActiveTerrainEffect> const& activeTerrainEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto activeTerrainEffectInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.ACTIVE_TERRAIN_EFFECT
+				(
+					MOD_ID, NAME, UNITSUMMONEDNAME, UNITSUMMONEDINITIALDAMAGE, UNITSUMMONEDACTIVE
+				)
+			values
+				(
+					?, ?, ?, ?, ?
+				)
+		)SQL");
+		for(auto const& ate : activeTerrainEffectData) {
+			mysql::results results;
+			connection.execute(
+				activeTerrainEffectInsertStatement.bind(
+					mod_id,
+					ate.name,
+					ate.unitSummonedName,
+					ate.unitSummonedInitialDamage,
+					ate.unitSummonedActive
+				)
+				,
+				results
 			);
-
-			mysql::execution_state state;
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(activeTerrainEffectInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
 
 			if (ate.targets) {
 				insertEffectTargets(connection, mod_id, ate.name, "ATE", *ate.targets);
@@ -1024,39 +960,43 @@ namespace {
 		}
 	}
 
-	void submitPassiveGlobalEffectData(boost::json::array const& passiveGlobalEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& passiveGlobalEffect : passiveGlobalEffectData) {
-			datatypes::PassiveGlobalEffect pge;
-			pge.readFrom(passiveGlobalEffect.as_object());
-
-			auto passiveGlobalEffectInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.PASSIVE_GLOBAL_EFFECT
-					(
-						MOD_ID, NAME, VARIANTMOD, MOVEMENTCLASSVARIANTREPLACE, MOVEMENTCLASSVARIANTOVERRIDE
-					)
-				values
-					(
-						?, ?, ?, ?, ?
-					)
-			)SQL");
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				pge.name,
-				pge.variantMod,
-				pge.movementClassVariantReplace,
-				pge.movementClassVariantOverride
+	void submitPassiveGlobalEffectData(std::vector<dTypes::PassiveGlobalEffect> const& passiveGlobalEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto passiveGlobalEffectInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PASSIVE_GLOBAL_EFFECT
+				(
+					MOD_ID, NAME, VARIANTMOD, MOVEMENTCLASSVARIANTREPLACE, MOVEMENTCLASSVARIANTOVERRIDE, MINIMUMVISIONMOD
+				)
+			values
+				(
+					?, ?, ?, ?, ?, ?
+				)
+		)SQL");
+		auto variantHintModInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.PGE_VARIANTHINTMOD_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, VARIANT, HINTMOD
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		for (auto const& pge : passiveGlobalEffectData) {
+			mysql::results results;
+			connection.execute(
+				passiveGlobalEffectInsertStatement.bind(
+					mod_id,
+					pge.name,
+					pge.variantMod,
+					pge.movementClassVariantReplace,
+					pge.movementClassVariantOverride,
+					pge.minimumVisionMod
+				)
+				,
+				results
 			);
-
-			mysql::execution_state state;
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(passiveGlobalEffectInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
 
 			if (pge.targets) {
 				insertEffectTargets(connection, mod_id, pge.name, "PGE", *pge.targets);
@@ -1064,63 +1004,55 @@ namespace {
 
 			if (pge.variantHintMod) {
 				for (auto const& [variantName, hint] : *pge.variantHintMod) {
-					auto variantHintModInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.PGE_VARIANTHINTMOD_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, VARIANT, HINTMOD
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(variantHintModInsertStatement, std::make_tuple(mod_id, pge.name, variantName, hint), results);
+					connection.execute(variantHintModInsertStatement.bind(mod_id, pge.name, variantName, hint), results);
 				}
 			}
 		}
 	}
 
-	void submitActiveGlobalEffectData(boost::json::array const& activeGlobalEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& activeGlobalEffect : activeGlobalEffectData) {
-			datatypes::ActiveGlobalEffect age;
-			age.readFrom(activeGlobalEffect.as_object());
-
-			auto activeGlobalEffectInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.ACTIVE_GLOBAL_EFFECT
-					(
-						MOD_ID, NAME, FUNDMOD, FUNDFLATMOD, POWERBARMOD, POWERBARPERFUNDS, MISSILECOUNT, MISSILEDAMAGE, MISSILEAREAOFEFFECT, MISSILESTUNDURATION
-					)
-				values
-					(
-						?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-					)
-			)SQL");
-
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				age.name,
-				age.fundMod,
-				age.fundFlatMod,
-				age.powerBarMod,
-				age.powerBarPerFunds,
-				age.missileCount,
-				age.missileDamage,
-				age.missileAreaOfEffect,
-				age.missileStunDuration
+	void submitActiveGlobalEffectData(std::vector<dTypes::ActiveGlobalEffect> const& activeGlobalEffectData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto activeGlobalEffectInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.ACTIVE_GLOBAL_EFFECT
+				(
+					MOD_ID, NAME, FUNDMOD, FUNDFLATMOD, POWERBARMOD, POWERBARPERFUNDS, MISSILECOUNT, MISSILEDAMAGE, MISSILEAREAOFEFFECT, MISSILESTUNDURATION, COCHARGEFACTOR
+				)
+			values
+				(
+					?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+				)
+		)SQL");
+		auto targetMethodInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.AGE_MISSILETARGETMETHOD_REFERENCE
+				(
+					MOD_ID, EFFECT_NAME, TARGETMETHOD
+				)
+			values
+				(
+					?, ?, ?
+				)
+		)SQL");
+		for (auto const& age : activeGlobalEffectData) {
+			mysql::results results;
+			connection.execute(
+				activeGlobalEffectInsertStatement.bind(
+					mod_id,
+					age.name,
+					age.fundMod,
+					age.fundFlatMod,
+					age.powerBarMod,
+					age.powerBarPerFunds,
+					age.missileCount,
+					age.missileDamage,
+					age.missileAreaOfEffect,
+					age.missileStunDuration,
+					age.coChargeFactor
+				)
+				,
+				results
 			);
-
-			mysql::execution_state state;
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(activeGlobalEffectInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
 
 			if (age.targets) {
 				insertEffectTargets(connection, mod_id, age.name, "AGE", *age.targets);
@@ -1128,261 +1060,210 @@ namespace {
 
 			if (age.missileTargetMethod) {
 				for (auto const& targetMethod : *age.missileTargetMethod) {
-					auto targetMethodInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.AGE_MISSILETARGETMETHOD_REFERENCE
-							(
-								MOD_ID, EFFECT_NAME, TARGETMETHOD
-							)
-						values
-							(
-								?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(targetMethodInsertStatement, std::make_tuple(mod_id, age.name, targetMethod), results);
+					connection.execute(targetMethodInsertStatement.bind(mod_id, age.name, targetMethod), results);
 				}
 			}
 		}
 	}
 
-	void submitDefaultSettingsData(boost::json::array const& defaultSettingsData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& defaultSettings : defaultSettingsData) {
-			datatypes::Settings settings;
-			settings.readFrom(defaultSettings.as_object());
-
-			auto defaultSettingsInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.DEFAULT_GAME_SETTINGS
-					(
-						MOD_ID, NAME, FOGOFWAR, COPOWERS, TEAMS, STARTINGFUNDS, INCOMEMULTIPLIER, UNITLIMIT, CAPTURELIMIT, DAYLIMIT, COMETERSIZE, COMETERMULTIPLIER
-					)
-				values
-					(
-						?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-					)
-			)SQL");
-			ParameterPack parameters;
-			bindAll(
-				parameters,
-				mod_id,
-				settings.name,
-				settings.fogOfWar,
-				settings.coPowers,
-				settings.teams,
-				settings.startingFunds,
-				settings.incomeMultiplier,
-				settings.unitLimit,
-				settings.captureLimit,
-				settings.dayLimit,
-				settings.coMeterSize,
-				settings.coMeterMultiplier
+	void submitDefaultSettingsData(std::vector<dTypes::Settings> const& defaultSettingsData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+		auto defaultSettingsInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.DEFAULT_GAME_SETTINGS
+				(
+					MOD_ID, NAME, FOGOFWAR, COPOWERS, TEAMS, STARTINGFUNDS, INCOMEMULTIPLIER, UNITLIMIT, CAPTURELIMIT, DAYLIMIT, COMETERSIZE, COMETERMULTIPLIER
+				)
+			values
+				(
+					?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+				)
+		)SQL");
+		auto settingsVariantInsertStatement = connection.prepare_statement(R"SQL(
+			insert into
+				DATA.DEFAULTSETTINGS_VARIANT_REFERENCE
+				(
+					MOD_ID, SETTING_NAME, VARIANT, VALUE
+				)
+			values
+				(
+					?, ?, ?, ?
+				)
+		)SQL");
+		for (auto const& settings : defaultSettingsData) {
+			mysql::results results;
+			connection.execute(
+				defaultSettingsInsertStatement.bind(
+					mod_id,
+					settings.name,
+					settings.fogOfWar,
+					settings.coPowers,
+					settings.teams,
+					settings.startingFunds,
+					settings.incomeMultiplier,
+					settings.unitLimit,
+					settings.captureLimit,
+					settings.dayLimit,
+					settings.coMeterSize,
+					settings.coMeterMultiplier
+				)
+				,
+				results
 			);
-
-
-			mysql::execution_state state;
-			auto parametersView = asView(parameters);
-
-			connection.start_statement_execution(defaultSettingsInsertStatement, parametersView.begin(), parametersView.end(), state);
-			while (!state.complete()) {
-				connection.read_some_rows(state);
-			}
 
 			if (settings.variant) {
 				for (auto const& [variantName, weight] : *settings.variant) {
-					auto settingsVariantInsertStatement = connection.prepare_statement(R"SQL(
-						insert into
-							DATA.DEFAULTSETTINGS_VARIANT_REFERENCE
-							(
-								MOD_ID, SETTING_NAME, VARIANT, VALUE
-							)
-						values
-							(
-								?, ?, ?, ?
-							)
-					)SQL");
 					mysql::results results;
-					connection.execute_statement(settingsVariantInsertStatement, std::make_tuple(mod_id, settings.name, variantName, weight), results);
+					connection.execute(settingsVariantInsertStatement.bind(mod_id, settings.name, variantName, weight), results);
 				}
 			}
 		}
 	}
 
-	void submitTextResourcesData(boost::json::array const& textResourcesData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& textResource : textResourcesData) {
-			datatypes::TextResource resource;
-			resource.readFrom(textResource.as_object());
+	//void submitTextResourcesData(boost::json::array const& textResourcesData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+	//	for (auto const& textResource : textResourcesData) {
+	//		dTypes::TextResource resource;
+	//		resource.readFrom(textResource.as_object());
 
-			auto textResourceInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.TEXT_RESOURCE
-					(
-						MOD_ID, `KEY`, `TYPE`, SHORTNAME, LONGNAME, DESCRIPTION, LANGUAGE, `ORDER`
-					)
-				values
-				(
-					?, ?, ?, ?, ?, ?, ?, ?
-				)
-			)SQL");
-			size_t i = 0;
-			do {
-				ParameterPack parameters;
-				bindAll(
-					parameters,
-					mod_id,
-					resource.key,
-					resource.type,
-					resource.shortName,
-					resource.longName
-				);
-				std::string descPart{
-					resource.description.begin() + i,
-					(i + 512 <= resource.description.size()) ? 
-						(resource.description.begin() + i + 512) :
-						(resource.description.end())
-				};
-				sbind(descPart, parameters);
-				sbind(resource.language, parameters);
-				sbind(i / 512, parameters);
+	//		auto textResourceInsertStatement = connection.prepare_statement(R"SQL(
+	//			insert into
+	//				DATA.TEXT_RESOURCE
+	//				(
+	//					MOD_ID, `KEY`, `TYPE`, SHORTNAME, LONGNAME, DESCRIPTION, LANGUAGE, `ORDER`
+	//				)
+	//			values
+	//			(
+	//				?, ?, ?, ?, ?, ?, ?, ?
+	//			)
+	//		)SQL");
+	//		size_t i = 0;
+	//		do {
+	//			ParameterPack parameters;
+	//			bindAll(
+	//				parameters,
+	//				mod_id,
+	//				resource.key,
+	//				resource.type,
+	//				resource.shortName,
+	//				resource.longName
+	//			);
+	//			std::string descPart{
+	//				resource.description.begin() + i,
+	//				(i + 512 <= resource.description.size()) ? 
+	//					(resource.description.begin() + i + 512) :
+	//					(resource.description.end())
+	//			};
+	//			sbind(descPart, parameters);
+	//			sbind(resource.language, parameters);
+	//			sbind(i / 512, parameters);
 
-				mysql::execution_state state;
-				auto parametersView = asView(parameters);
+	//			mysql::execution_state state;
+	//			auto parametersView = asView(parameters);
 
-				connection.start_statement_execution(textResourceInsertStatement, parametersView.begin(), parametersView.end(), state);
-				while (!state.complete()) {
-					connection.read_some_rows(state);
-				}
-				i += 512;
-			} while (i < resource.description.size());
-		}
-	}
+	//			connection.start_statement_execution(textResourceInsertStatement, parametersView.begin(), parametersView.end(), state);
+	//			while (!state.complete()) {
+	//				connection.read_some_rows(state);
+	//			}
+	//			i += 512;
+	//		} while (i < resource.description.size());
+	//	}
+	//}
 
-	void submitImageResourcesData(boost::json::array const& imageResourcesData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-		for (auto const& imageResource : imageResourcesData) {
-			datatypes::ImageResource resource;
-			resource.readFrom(imageResource.as_object());
+	//void submitImageResourcesData(boost::json::array const& imageResourcesData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
+	//	for (auto const& imageResource : imageResourcesData) {
+	//		dTypes::ImageResource resource;
+	//		resource.readFrom(imageResource.as_object());
 
-			auto imageResourceInsertStatement = connection.prepare_statement(R"SQL(
-				insert into
-					DATA.IMAGE_RESOURCE
-					(
-						MOD_ID, `KEY`, `TYPE`, SMALLIMAGE, LARGEIMAGE, ARMYCOLOR, `ORDER`, ORIENTATION, VARIANT
-					)
-				values
-				(
-					?, ?, ?, ?, ?, ?, ?, ?, ?
-				)
-			)SQL");
-			size_t i = 0;
-			constexpr size_t BLOCK_SIZE = 512;
-			do {
-				ParameterPack parameters;
-				bindAll(
-					parameters,
-					mod_id,
-					resource.key,
-					resource.type
-				);
-				auto getPart = [&](std::string const& str) -> std::optional<std::string> {
-					if (i < str.size()) {
-						return std::string{
-							str.begin() + i,
-							(i + BLOCK_SIZE <= str.size()) ?
-								(str.begin() + i + BLOCK_SIZE) :
-								(str.end())
-						};
-					}
-					if (i == 0) {
-						return str;
-					}
-					return {};
-				};
-				auto smallPart = getPart(resource.smallImage);
-				auto largePart = getPart(resource.largeImage);
+	//		auto imageResourceInsertStatement = connection.prepare_statement(R"SQL(
+	//			insert into
+	//				DATA.IMAGE_RESOURCE
+	//				(
+	//					MOD_ID, `KEY`, `TYPE`, SMALLIMAGE, LARGEIMAGE, ARMYCOLOR, `ORDER`, ORIENTATION, VARIANT
+	//				)
+	//			values
+	//			(
+	//				?, ?, ?, ?, ?, ?, ?, ?, ?
+	//			)
+	//		)SQL");
+	//		size_t i = 0;
+	//		constexpr size_t BLOCK_SIZE = 512;
+	//		do {
+	//			ParameterPack parameters;
+	//			bindAll(
+	//				parameters,
+	//				mod_id,
+	//				resource.key,
+	//				resource.type
+	//			);
+	//			auto getPart = [&](std::string const& str) -> std::optional<std::string> {
+	//				if (i < str.size()) {
+	//					return std::string{
+	//						str.begin() + i,
+	//						(i + BLOCK_SIZE <= str.size()) ?
+	//							(str.begin() + i + BLOCK_SIZE) :
+	//							(str.end())
+	//					};
+	//				}
+	//				if (i == 0) {
+	//					return str;
+	//				}
+	//				return {};
+	//			};
+	//			auto smallPart = getPart(resource.smallImage);
+	//			auto largePart = getPart(resource.largeImage);
 
-				sbind(smallPart, parameters);
-				sbind(largePart, parameters);
-				sbind(resource.armyColor, parameters);
-				sbind(i / BLOCK_SIZE, parameters);
-				sbind(resource.orientation, parameters);
-				sbind(resource.variant, parameters);
+	//			sbind(smallPart, parameters);
+	//			sbind(largePart, parameters);
+	//			sbind(resource.armyColor, parameters);
+	//			sbind(i / BLOCK_SIZE, parameters);
+	//			sbind(resource.orientation, parameters);
+	//			sbind(resource.variant, parameters);
 
-				mysql::execution_state state;
-				auto parametersView = asView(parameters);
+	//			mysql::execution_state state;
+	//			auto parametersView = asView(parameters);
 
-				connection.start_statement_execution(imageResourceInsertStatement, parametersView.begin(), parametersView.end(), state);
-				while (!state.complete()) {
-					connection.read_some_rows(state);
-				}
-				i += BLOCK_SIZE;
-			} while (i < std::max(resource.smallImage.size(), resource.largeImage.size()));
-		}
-	}
+	//			connection.start_statement_execution(imageResourceInsertStatement, parametersView.begin(), parametersView.end(), state);
+	//			while (!state.complete()) {
+	//				connection.read_some_rows(state);
+	//			}
+	//			i += BLOCK_SIZE;
+	//		} while (i < std::max(resource.smallImage.size(), resource.largeImage.size()));
+	//	}
+	//}
 
 	void extractModData(boost::json::value value) {
+		auto const& obj = value.as_object();
+		if (auto protocolPtr = obj.if_contains("protocol")) {
+			if (auto protocolStringPtr = protocolPtr->if_string()) {
+				if (*protocolStringPtr != supportedProtocol) {
+					throw net::RestError("Protocol '" + std::string(*protocolStringPtr) + "' is not supported by this version of AWCustom.", net::RestError::Type::INVALID_DATA);
+				}
+			}
+			else {
+				throw net::RestError("'protocol' field is improperly specified; expected type 'string'", net::RestError::Type::INVALID_DATA);
+			}
+		}
+		dTypes::ModData modData;
+		modData.readFrom(obj);
+
 		sqlutil::Session session;
-		try {
-			mysql::results results;
-			session.connection.query("START TRANSACTION", results);
+		sqlutil::Transaction transaction(session);
+		auto modId = submitMetaData(modData.modMetadata, session.connection);
+		submitUnitData(modData.units, session.connection, modId);
+		submitWeaponData(modData.weapons, session.connection, modId);
+		submitTerrainData(modData.terrains, session.connection, modId);
+		submitMovementData(modData.movements, session.connection, modId);
+		submitCommanderData(modData.commanders, session.connection, modId);
+		submitPlayerData(modData.players, session.connection, modId);
+		submitPassiveUnitEffectData(modData.passiveUnitEffects, session.connection, modId);
+		submitPassiveTerrainEffectData(modData.passiveTerrainEffects, session.connection, modId);
+		submitPassiveGlobalEffectData(modData.passiveGlobalEffects, session.connection, modId);
+		submitActiveUnitEffectData(modData.activeUnitEffects, session.connection, modId);
+		submitActiveTerrainEffectData(modData.activeTerrainEffects, session.connection, modId);
+		submitActiveGlobalEffectData(modData.activeGlobalEffects, session.connection, modId);
+		submitDefaultSettingsData(modData.defaultSettings, session.connection, modId);
 
-			auto const& obj = value;
-
-			auto const& metadata = obj.at("modMetaData");
-			auto mod_id = submitMetaData(metadata.as_object(), session.connection);
-			auto const& unitData = obj.at("units");
-			submitUnitData(unitData.as_array(), session.connection, mod_id);
-			auto const& weaponData = obj.at("weapons");
-			submitWeaponData(weaponData.as_array(), session.connection, mod_id);
-			auto const& terrainData = obj.at("terrains");
-			submitTerrainData(terrainData.as_array(), session.connection, mod_id);
-			auto const& movementData = obj.at("movementClasses");
-			submitMovementData(movementData.as_array(), session.connection, mod_id);
-			auto const& commanderData = obj.at("commanders");
-			submitCommanderData(commanderData.as_array(), session.connection, mod_id);
-			auto const& playerData = obj.at("playerTypes");
-			submitPlayerData(playerData.as_array(), session.connection, mod_id);
-			auto const& passiveUnitEffectData = obj.at("passiveUnitEffects");
-			submitPassiveUnitEffectData(passiveUnitEffectData.as_array(), session.connection, mod_id);
-			auto const& activeUnitEffectData = obj.at("activeUnitEffects");
-			submitActiveUnitEffectData(activeUnitEffectData.as_array(), session.connection, mod_id);
-			auto const& passiveTerrainEffectData = obj.at("passiveTerrainEffects");
-			submitPassiveTerrainEffectData(passiveTerrainEffectData.as_array(), session.connection, mod_id);
-			auto const& activeTerrainEffectData = obj.at("activeTerrainEffects");
-			submitActiveTerrainEffectData(activeTerrainEffectData.as_array(), session.connection, mod_id);
-			auto const& passiveGlobalEffectData = obj.at("passiveGlobalEffects");
-			submitPassiveGlobalEffectData(passiveGlobalEffectData.as_array(), session.connection, mod_id);
-			auto const& activeGlobalEffectData = obj.at("activeGlobalEffects");
-			submitActiveGlobalEffectData(activeGlobalEffectData.as_array(), session.connection, mod_id);
-
-			auto const& defaultSettingsData = obj.at("defaultSettings");
-			submitDefaultSettingsData(defaultSettingsData.as_array(), session.connection, mod_id);
-			auto const& textResourcesData = obj.at("textResources");
-			submitTextResourcesData(textResourcesData.as_array(), session.connection, mod_id);
-			auto const& imageResourcesData = obj.at("imageResources");
-			submitImageResourcesData(imageResourcesData.as_array(), session.connection, mod_id);
-
-			session.connection.query("COMMIT", results);
-		}
-		catch (boost::system::system_error const& e) {
-			mysql::results results;
-			session.connection.query("ROLLBACK", results);
-			throw e;
-		}
-		catch (std::invalid_argument const& e) {
-			mysql::results results;
-			session.connection.query("ROLLBACK", results);
-			throw e;
-		}
-		catch (std::out_of_range const& e) {
-			mysql::results results;
-			session.connection.query("ROLLBACK", results);
-			throw e;
-		}
-		catch (...) {
-			mysql::results results;
-			session.connection.query("ROLLBACK", results);
-			std::rethrow_exception(std::current_exception());
-		}
+		transaction.commit();
 	}
 }
 
@@ -1398,13 +1279,10 @@ std::string rest::data::upload_mod(net::HTTPHeaders const& headers, std::string 
 		extractModData(boost::json::parse(body));
 		return "success";
 	}
-	catch (boost::system::system_error const& e) {
-		throw net::RestError("There was a problem parsing the Mod Data: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
+	catch (mysql::error_with_diagnostics const& e) {
+		throw net::RestError("Internal SQL Error: '" + std::string(e.get_diagnostics().client_message()) + "'/'" + std::string(e.get_diagnostics().server_message()) + "'", net::RestError::Type::INTERNAL_ERROR);
 	}
-	catch (std::invalid_argument const& e) {
-		throw net::RestError("There was a problem parsing the Mod Data: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
-	}
-	catch (std::out_of_range const& e) {
+	catch (std::runtime_error const& e) {
 		throw net::RestError("There was a problem parsing the Mod Data: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
 	}
 	catch (std::exception const& e) {

@@ -26,4 +26,29 @@ namespace sqlutil {
 	Session::~Session() {
 		connection.close();
 	}
+
+
+	Transaction::Transaction(Session& session) :
+		session(session) {
+		boost::mysql::results results;
+		this->session.connection.query("START TRANSACTION", results);
+	}
+
+	Transaction::~Transaction() {
+		try {
+			if (!committed) {
+				boost::mysql::results results;
+				session.connection.query("ROLLBACK", results);
+			}
+		}
+		catch (...) {
+			//TODO: Proper Logging
+			std::cerr << "Unable to Rollback Transaction!" << std::endl;
+		}
+	}
+	void Transaction::commit() {
+		boost::mysql::results results;
+		session.connection.query("COMMIT", results);
+		committed = true;
+	}
 }

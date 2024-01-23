@@ -1909,9 +1909,44 @@ namespace datatypes {
 		}
 	};
 
+	struct DefaultResourcePack {
+		std::string name;
+		std::optional<std::string> version;
+
+		void readFrom(json::object const& obj) {
+			if (auto ptr = obj.if_contains("name")) {
+				if (auto tPtr = ptr->if_string()) {
+					name = *tPtr;
+				}
+				else {
+					throw std::runtime_error("Expected 'name' as std::string in DefaultResourcePack, but was of wrong type.");
+				}
+			}
+			else {
+				throw std::runtime_error("'name' was missing in ModMetadata");
+			}
+			if (auto ptr = obj.if_contains("version")) {
+				if (auto tPtr = ptr->if_string()) {
+					version = *tPtr;
+				}
+				else {
+					throw std::runtime_error("Expected 'version' as std::string in DefaultResourcePack, but was of wrong type.");
+				}
+			}
+		}
+
+		void writeTo(json::object& obj) const {
+			obj["name"] = name;
+			if (version) {
+				obj["version"] = *version;
+			}
+		}
+	};
+	
 	struct ModMetadata {
 		std::string name;
 		std::string version;
+		std::optional<std::vector<DefaultResourcePack>> defaultResourcePacks;
 
 		void readFrom(json::object const& obj) {
 			if (auto ptr = obj.if_contains("name")) {
@@ -1935,6 +1970,9 @@ namespace datatypes {
 			}
 			else {
 				throw std::runtime_error("'version' was missing in ModMetadata");
+			}
+			if (auto ptr = obj.if_contains("defaultResourcePacks")) {
+
 			}
 		}
 

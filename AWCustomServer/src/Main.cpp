@@ -26,8 +26,8 @@ int main() {
 			{"/data/getAGEs", rest::data::get_ages},
 			{"/data/getSettings", rest::data::get_settings},
 			{"/data/getModData", rest::data::get_mod_metadata},
-			{"/data/getTextResources", rest::data::get_text_resources},
-			{"/data/getImageResources", rest::data::get_image_resources},
+			//{"/data/getTextResources", rest::data::get_text_resources},
+			//{"/data/getImageResources", rest::data::get_image_resources},
 
 			{"/state/getGameState", rest::state::get_gamestate},
 			{"/state/getUnitStates", rest::state::get_unitstates},

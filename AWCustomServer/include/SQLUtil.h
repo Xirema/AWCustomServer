@@ -11,4 +11,14 @@ namespace sqlutil {
 		~Session();
 		Session(Session const&) = delete;
 	};
+
+	class Transaction {
+		Session& session;
+		bool committed = false;
+	public:
+		Transaction(Session& session);
+		~Transaction();
+		Transaction(Transaction const&) = delete;
+		void commit();
+	};
 }
