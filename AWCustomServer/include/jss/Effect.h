@@ -570,8 +570,12 @@ namespace dTypes{
         std::optional<std::vector<std::string>> terrainRequired;
         std::optional<int64_t> hitPointMod;
         std::optional<int64_t> roundHitPoints;
-        std::optional<bool> resupply;
-        std::optional<bool> halveFuel;
+        std::optional<int64_t> setFuel;
+        std::optional<int64_t> setAmmo;
+        std::optional<int64_t> addFuel;
+        std::optional<int64_t> addAmmo;
+        std::optional<int64_t> multiplyFuel;
+        std::optional<int64_t> multiplyAmmo;
         std::optional<bool> makeActive;
         std::optional<int64_t> stunDuration;
         std::optional<int64_t> coChargeFactor;
@@ -661,18 +665,46 @@ namespace dTypes{
        			    throw std::runtime_error("Expected 'roundHitPoints' as int64_t in ActiveUnitEffect, but was of type " + std::string(to_string(ptr->kind())) + ".");
 				}
 			} 
-            if(auto ptr = obj.if_contains("resupply")) {
-	            if(auto tPtr = ptr->if_bool()) {
-   	                resupply = *tPtr;
+            if(auto ptr = obj.if_contains("setFuel")) {
+	            if(auto tPtr = ptr->if_int64()) {
+   	                setFuel = *tPtr;
    				} else if(!ptr->is_null()) {
-       			    throw std::runtime_error("Expected 'resupply' as bool in ActiveUnitEffect, but was of type " + std::string(to_string(ptr->kind())) + ".");
+       			    throw std::runtime_error("Expected 'setFuel' as int64_t in ActiveUnitEffect, but was of type " + std::string(to_string(ptr->kind())) + ".");
 				}
 			} 
-            if(auto ptr = obj.if_contains("halveFuel")) {
-	            if(auto tPtr = ptr->if_bool()) {
-   	                halveFuel = *tPtr;
+            if(auto ptr = obj.if_contains("setAmmo")) {
+	            if(auto tPtr = ptr->if_int64()) {
+   	                setAmmo = *tPtr;
    				} else if(!ptr->is_null()) {
-       			    throw std::runtime_error("Expected 'halveFuel' as bool in ActiveUnitEffect, but was of type " + std::string(to_string(ptr->kind())) + ".");
+       			    throw std::runtime_error("Expected 'setAmmo' as int64_t in ActiveUnitEffect, but was of type " + std::string(to_string(ptr->kind())) + ".");
+				}
+			} 
+            if(auto ptr = obj.if_contains("addFuel")) {
+	            if(auto tPtr = ptr->if_int64()) {
+   	                addFuel = *tPtr;
+   				} else if(!ptr->is_null()) {
+       			    throw std::runtime_error("Expected 'addFuel' as int64_t in ActiveUnitEffect, but was of type " + std::string(to_string(ptr->kind())) + ".");
+				}
+			} 
+            if(auto ptr = obj.if_contains("addAmmo")) {
+	            if(auto tPtr = ptr->if_int64()) {
+   	                addAmmo = *tPtr;
+   				} else if(!ptr->is_null()) {
+       			    throw std::runtime_error("Expected 'addAmmo' as int64_t in ActiveUnitEffect, but was of type " + std::string(to_string(ptr->kind())) + ".");
+				}
+			} 
+            if(auto ptr = obj.if_contains("multiplyFuel")) {
+	            if(auto tPtr = ptr->if_int64()) {
+   	                multiplyFuel = *tPtr;
+   				} else if(!ptr->is_null()) {
+       			    throw std::runtime_error("Expected 'multiplyFuel' as int64_t in ActiveUnitEffect, but was of type " + std::string(to_string(ptr->kind())) + ".");
+				}
+			} 
+            if(auto ptr = obj.if_contains("multiplyAmmo")) {
+	            if(auto tPtr = ptr->if_int64()) {
+   	                multiplyAmmo = *tPtr;
+   				} else if(!ptr->is_null()) {
+       			    throw std::runtime_error("Expected 'multiplyAmmo' as int64_t in ActiveUnitEffect, but was of type " + std::string(to_string(ptr->kind())) + ".");
 				}
 			} 
             if(auto ptr = obj.if_contains("makeActive")) {
@@ -734,11 +766,23 @@ namespace dTypes{
             if(roundHitPoints) {
           	    obj["roundHitPoints"] = *roundHitPoints;
           	}
-            if(resupply) {
-          	    obj["resupply"] = *resupply;
+            if(setFuel) {
+          	    obj["setFuel"] = *setFuel;
           	}
-            if(halveFuel) {
-          	    obj["halveFuel"] = *halveFuel;
+            if(setAmmo) {
+          	    obj["setAmmo"] = *setAmmo;
+          	}
+            if(addFuel) {
+          	    obj["addFuel"] = *addFuel;
+          	}
+            if(addAmmo) {
+          	    obj["addAmmo"] = *addAmmo;
+          	}
+            if(multiplyFuel) {
+          	    obj["multiplyFuel"] = *multiplyFuel;
+          	}
+            if(multiplyAmmo) {
+          	    obj["multiplyAmmo"] = *multiplyAmmo;
           	}
             if(makeActive) {
           	    obj["makeActive"] = *makeActive;

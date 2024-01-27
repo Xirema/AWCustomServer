@@ -158,6 +158,7 @@
     <ClCompile Include="src\Archive.cpp" />
     <ClCompile Include="src\DataLookup.cpp" />
     <ClCompile Include="src\DataUpload.cpp" />
+    <ClCompile Include="src\ResourcePacks.cpp" />
     <ClCompile Include="src\RestServer.cpp" />
     <ClCompile Include="src\StateLookup.cpp" />
     <ClCompile Include="src\v1\DataUploadV1.cpp" />

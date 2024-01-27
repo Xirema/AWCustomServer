@@ -10,7 +10,7 @@
 #include<jss/Unit.h>
 
 namespace {
-	const std::string secret_key = "a8f7af7d81269941f6d78eab35632eb0c603bd3ece95f8df7ab4a41ad187b06a";
+	//const std::string secret_key = "a8f7af7d81269941f6d78eab35632eb0c603bd3ece95f8df7ab4a41ad187b06a";
 	const std::string supportedProtocol = "AWC000001";
 	namespace mysql = boost::mysql;
 
@@ -820,11 +820,11 @@ namespace {
 			insert into
 				DATA.ACTIVE_UNIT_EFFECT
 				(
-					MOD_ID, NAME, HITPOINTMOD, ROUNDHITPOINTS, RESUPPLY, HALVEFUEL, MAKEACTIVE, STUNDURATION, COCHARGEFACTOR
+					MOD_ID, NAME, HITPOINTMOD, ROUNDHITPOINTS, SETFUEL, SETAMMO, ADDFUEL, ADDAMMO, MULTIPLYFUEL, MULTIPLYAMMO, MAKEACTIVE, STUNDURATION, COCHARGEFACTOR
 				)
 			values
 				(
-					?, ?, ?, ?, ?, ?, ?, ?, ?
+					?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 				)
 		)SQL");
 		for (auto const& aue : activeUnitEffectData) {
@@ -835,8 +835,12 @@ namespace {
 					aue.name,
 					aue.hitPointMod,
 					aue.roundHitPoints,
-					aue.resupply,
-					aue.halveFuel,
+					aue.setFuel,
+					aue.setAmmo,
+					aue.addFuel,
+					aue.addAmmo,
+					aue.multiplyFuel,
+					aue.multiplyAmmo,
 					aue.makeActive,
 					aue.stunDuration,
 					aue.coChargeFactor
@@ -1120,117 +1124,6 @@ namespace {
 		}
 	}
 
-	//void submitTextResourcesData(boost::json::array const& textResourcesData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-	//	for (auto const& textResource : textResourcesData) {
-	//		dTypes::TextResource resource;
-	//		resource.readFrom(textResource.as_object());
-
-	//		auto textResourceInsertStatement = connection.prepare_statement(R"SQL(
-	//			insert into
-	//				DATA.TEXT_RESOURCE
-	//				(
-	//					MOD_ID, `KEY`, `TYPE`, SHORTNAME, LONGNAME, DESCRIPTION, LANGUAGE, `ORDER`
-	//				)
-	//			values
-	//			(
-	//				?, ?, ?, ?, ?, ?, ?, ?
-	//			)
-	//		)SQL");
-	//		size_t i = 0;
-	//		do {
-	//			ParameterPack parameters;
-	//			bindAll(
-	//				parameters,
-	//				mod_id,
-	//				resource.key,
-	//				resource.type,
-	//				resource.shortName,
-	//				resource.longName
-	//			);
-	//			std::string descPart{
-	//				resource.description.begin() + i,
-	//				(i + 512 <= resource.description.size()) ? 
-	//					(resource.description.begin() + i + 512) :
-	//					(resource.description.end())
-	//			};
-	//			sbind(descPart, parameters);
-	//			sbind(resource.language, parameters);
-	//			sbind(i / 512, parameters);
-
-	//			mysql::execution_state state;
-	//			auto parametersView = asView(parameters);
-
-	//			connection.start_statement_execution(textResourceInsertStatement, parametersView.begin(), parametersView.end(), state);
-	//			while (!state.complete()) {
-	//				connection.read_some_rows(state);
-	//			}
-	//			i += 512;
-	//		} while (i < resource.description.size());
-	//	}
-	//}
-
-	//void submitImageResourcesData(boost::json::array const& imageResourcesData, mysql::tcp_ssl_connection & connection, uint64_t mod_id) {
-	//	for (auto const& imageResource : imageResourcesData) {
-	//		dTypes::ImageResource resource;
-	//		resource.readFrom(imageResource.as_object());
-
-	//		auto imageResourceInsertStatement = connection.prepare_statement(R"SQL(
-	//			insert into
-	//				DATA.IMAGE_RESOURCE
-	//				(
-	//					MOD_ID, `KEY`, `TYPE`, SMALLIMAGE, LARGEIMAGE, ARMYCOLOR, `ORDER`, ORIENTATION, VARIANT
-	//				)
-	//			values
-	//			(
-	//				?, ?, ?, ?, ?, ?, ?, ?, ?
-	//			)
-	//		)SQL");
-	//		size_t i = 0;
-	//		constexpr size_t BLOCK_SIZE = 512;
-	//		do {
-	//			ParameterPack parameters;
-	//			bindAll(
-	//				parameters,
-	//				mod_id,
-	//				resource.key,
-	//				resource.type
-	//			);
-	//			auto getPart = [&](std::string const& str) -> std::optional<std::string> {
-	//				if (i < str.size()) {
-	//					return std::string{
-	//						str.begin() + i,
-	//						(i + BLOCK_SIZE <= str.size()) ?
-	//							(str.begin() + i + BLOCK_SIZE) :
-	//							(str.end())
-	//					};
-	//				}
-	//				if (i == 0) {
-	//					return str;
-	//				}
-	//				return {};
-	//			};
-	//			auto smallPart = getPart(resource.smallImage);
-	//			auto largePart = getPart(resource.largeImage);
-
-	//			sbind(smallPart, parameters);
-	//			sbind(largePart, parameters);
-	//			sbind(resource.armyColor, parameters);
-	//			sbind(i / BLOCK_SIZE, parameters);
-	//			sbind(resource.orientation, parameters);
-	//			sbind(resource.variant, parameters);
-
-	//			mysql::execution_state state;
-	//			auto parametersView = asView(parameters);
-
-	//			connection.start_statement_execution(imageResourceInsertStatement, parametersView.begin(), parametersView.end(), state);
-	//			while (!state.complete()) {
-	//				connection.read_some_rows(state);
-	//			}
-	//			i += BLOCK_SIZE;
-	//		} while (i < std::max(resource.smallImage.size(), resource.largeImage.size()));
-	//	}
-	//}
-
 	void extractModData(boost::json::value value) {
 		auto const& obj = value.as_object();
 		if (auto protocolPtr = obj.if_contains("protocol")) {
@@ -1268,13 +1161,13 @@ namespace {
 }
 
 std::string rest::data::upload_mod(net::HTTPHeaders const& headers, std::string body) {
-	auto it = headers.httpHeaders.find("cookies");
-	if (it == headers.httpHeaders.end()) {
-		throw net::RestError("This Request is not Authorized", net::RestError::Type::INVALID_DATA);
-	}
-	if (auto const& value = it->second; value.find(secret_key) == std::string::npos) {
-		throw net::RestError("This Request is not Authorized", net::RestError::Type::INVALID_DATA);
-	}
+	//auto it = headers.httpHeaders.find("cookies");
+	//if (it == headers.httpHeaders.end()) {
+	//	throw net::RestError("This Request is not Authorized", net::RestError::Type::INVALID_DATA);
+	//}
+	//if (auto const& value = it->second; value.find(secret_key) == std::string::npos) {
+	//	throw net::RestError("This Request is not Authorized", net::RestError::Type::INVALID_DATA);
+	//}
 	try {
 		extractModData(boost::json::parse(body));
 		return "success";

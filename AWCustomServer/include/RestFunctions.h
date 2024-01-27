@@ -17,8 +17,6 @@ namespace rest {
 		std::string get_pges(net::HTTPHeaders const& headers);
 		std::string get_ages(net::HTTPHeaders const& headers);
 		std::string get_settings(net::HTTPHeaders const& headers);
-		//std::string get_text_resources(net::HTTPHeaders const& headers);
-		//std::string get_image_resources(net::HTTPHeaders const& headers);
 		std::string get_mod_metadata(net::HTTPHeaders const& headers);
 	}
 
@@ -28,5 +26,11 @@ namespace rest {
 		std::string get_unitstates(net::HTTPHeaders const& headers);
 		std::string get_terrainstates(net::HTTPHeaders const& headers);
 		std::string get_settingstate(net::HTTPHeaders const& headers);
+	}
+
+	namespace resource {
+		std::string upload_pack(net::HTTPHeaders const& headers, std::string body);
+		std::string get_resource_pack(net::HTTPHeaders const& headers);
+		std::string get_pack_metadata(net::HTTPHeaders const& headers);
 	}
 }

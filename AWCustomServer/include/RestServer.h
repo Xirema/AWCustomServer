@@ -20,7 +20,7 @@ namespace net {
 	struct RestError {
 		std::string message;
 		enum class Type {
-			BAD_REQUEST, INTERNAL_ERROR, INVALID_DATA
+			BAD_REQUEST, INTERNAL_ERROR, INVALID_DATA, NOT_FOUND
 		};
 		Type type;
 	};

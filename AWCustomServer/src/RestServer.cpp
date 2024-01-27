@@ -216,6 +216,8 @@ namespace net {
 							return http::status::internal_server_error;
 						if (type == RestError::Type::INVALID_DATA)
 							return http::status::bad_request;
+						if (type == RestError::Type::NOT_FOUND)
+							return http::status::not_found;
 						return http::status::unknown;
 					}();
 					string_response response{ status, request.version() };
@@ -301,7 +303,7 @@ namespace net {
 					string_response response{ http::status::no_content, request.version() };
 					response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
 					response.set(http::field::access_control_allow_origin, "*");
-					response.set(http::field::access_control_allow_methods, "GET, POST");
+					response.set(http::field::access_control_allow_methods, "GET, POST, PUT");
 					response.set(http::field::access_control_allow_headers, "*");
 					response.set(http::field::access_control_max_age, "86400");
 					response.keep_alive(request.keep_alive());

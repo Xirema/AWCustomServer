@@ -26,17 +26,19 @@ int main() {
 			{"/data/getAGEs", rest::data::get_ages},
 			{"/data/getSettings", rest::data::get_settings},
 			{"/data/getModData", rest::data::get_mod_metadata},
-			//{"/data/getTextResources", rest::data::get_text_resources},
-			//{"/data/getImageResources", rest::data::get_image_resources},
 
 			{"/state/getGameState", rest::state::get_gamestate},
 			{"/state/getUnitStates", rest::state::get_unitstates},
 			{"/state/getTerrainStates", rest::state::get_terrainstates},
 			{"/state/getPlayerStates", rest::state::get_playerstates},
 			{"/state/getSettingState", rest::state::get_settingstate},
+
+			{"/resource/getPack", rest::resource::get_resource_pack},
+			{"/resource/getMetadata", rest::resource::get_pack_metadata}
 		};
 		std::unordered_map<std::string, net::POSTFunc> postFunctions{
 			{"/data/uploadMod", rest::data::upload_mod},
+			{"/resource/uploadPack", rest::resource::upload_pack}
 		};
 		std::unordered_map<std::string, net::PUTFunc> putFunctions;
 		server.start(getFunctions, postFunctions, putFunctions);

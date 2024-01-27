@@ -42,39 +42,28 @@ int main(int argc, char** argv) {
 		conn.set_meta_mode(mysql::metadata_mode::full);
 		std::cout << "Connection successful." << std::endl;
 
-		std::string sql = "select * from DATA.MOD where version = ?";
-
-		//mysql::results results;
-		auto statement = conn.prepare_statement(sql);
+		std::string sql = "select * from RESOURCE.PACK where NAME = ? and EXPIRED is null";
 		std::vector<mysql::field> parameters;
-		parameters.emplace_back("0.96");
-		std::vector<mysql::field_view> parametersView;
-		parametersView.emplace_back(parameters.at(0));
-		std::cout << "Parameters set." << std::endl;
+		std::string name = "default";
+		parameters.emplace_back(name);
 
-		//conn.query(sql, results);
-		//conn.execute_statement(statement, std::make_tuple(), results);
-
-		std::cout << "Beginning SQL Execution." << std::endl;
-		mysql::execution_state state;
-		std::vector<mysql::row> results;
-		conn.start_statement_execution(statement, parametersView.begin(), parametersView.end(), state);
-		while (!state.complete()) {
-			auto rows = conn.read_some_rows(state);
-			for (auto const& row : rows) {
-				results.emplace_back(row);
-			}
-		}
+		mysql::results results;
+		auto statement = conn.prepare_statement(sql);
+		conn.execute(
+			statement.bind(parameters.begin(), parameters.end()),
+			results
+		);
+		
 		std::cout << "SQL Execution concluded." << std::endl;
 
-		size_t columns = state.meta().size();
+		size_t columns = results.meta().size();
 		size_t rows = results.size();
 		std::vector<std::vector<std::string>> resultsMatrix;
 		auto & headersRow = resultsMatrix.emplace_back();
-		for (auto const& column : state.meta()) {
+		for (auto const& column : results.meta()) {
 			headersRow.emplace_back(column.column_name());
 		}
-		for (auto const& row : results) {
+		for (auto const& row : results.rows()) {
 			auto& matrixRow = resultsMatrix.emplace_back();
 			for (auto const& object : row) {
 				std::stringstream ss;
