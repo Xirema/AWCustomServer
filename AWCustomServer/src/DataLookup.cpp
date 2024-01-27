@@ -670,29 +670,6 @@ namespace {
 		setting.variant->emplace(*get<std::string>(row[3]), *get<int64_t>(row[4]));
 	}
 
-	std::string error_guard(net::GETFunc func, net::HTTPHeaders const& headers) {
-		try {
-			return func(headers);
-		}
-		catch (mysql::error_with_diagnostics const& e) {
-			throw net::RestError("Internal SQL Error: '" + std::string(e.get_diagnostics().client_message()) + "'/'" + std::string(e.get_diagnostics().server_message()) + "'", net::RestError::Type::INTERNAL_ERROR);
-		}
-		catch (std::runtime_error const& e) {
-			throw net::RestError("Unknown Error: " + std::string(e.what()), net::RestError::Type::INTERNAL_ERROR);
-		}
-		catch (net::RestError const& e) {
-			throw e;
-		}
-		catch (...) {
-			try {
-				std::rethrow_exception(std::current_exception());
-			}
-			catch (std::exception const& e) {
-				throw net::RestError("Unknown Error: " + std::string(e.what()), net::RestError::Type::INTERNAL_ERROR);
-			}
-		}
-	}
-
 	std::string get_weapons_impl(net::HTTPHeaders const& headers) {
 		sqlutil::Session session;
 		auto modId = getModId(session.connection, headers);
@@ -1416,64 +1393,57 @@ namespace {
 }
 
 std::string rest::data::get_weapons(net::HTTPHeaders const& headers) {
-	return error_guard(get_weapons_impl, headers);
+	return get_weapons_impl(headers);
 }
 
 std::string rest::data::get_units(net::HTTPHeaders const& headers) {
-	return error_guard(get_units_impl, headers);
+	return get_units_impl(headers);
 }
 
 std::string rest::data::get_terrains(net::HTTPHeaders const& headers) {
-	return error_guard(get_terrains_impl, headers);
+	return get_terrains_impl(headers);
 }
 
 std::string rest::data::get_commanders(net::HTTPHeaders const& headers) {
-	return error_guard(get_commanders_impl, headers);
+	return get_commanders_impl(headers);
 }
 
 std::string rest::data::get_movements(net::HTTPHeaders const& headers) {
-	return error_guard(get_movements_impl, headers);
+	return get_movements_impl(headers);
 }
 
 std::string rest::data::get_players(net::HTTPHeaders const& headers) {
-	return error_guard(get_players_impl, headers);
+	return get_players_impl(headers);
 }
 
 std::string rest::data::get_pues(net::HTTPHeaders const& headers) {
-	return error_guard(get_pues_impl, headers);
+	return get_pues_impl(headers);
 }
 
 std::string rest::data::get_aues(net::HTTPHeaders const& headers) {
-	return error_guard(get_aues_impl, headers);
+	return get_aues_impl(headers);
 }
 
 std::string rest::data::get_ptes(net::HTTPHeaders const& headers) {
-	return error_guard(get_ptes_impl, headers);
+	return get_ptes_impl(headers);
 }
 
 std::string rest::data::get_ates(net::HTTPHeaders const& headers) {
-	return error_guard(get_ates_impl, headers);
+	return get_ates_impl(headers);
 }
 
 std::string rest::data::get_pges(net::HTTPHeaders const& headers) {
-	return error_guard(get_pges_impl, headers);
+	return get_pges_impl(headers);
 }
 
 std::string rest::data::get_ages(net::HTTPHeaders const& headers) {
-	return error_guard(get_ages_impl, headers);
+	return get_ages_impl(headers);
 }
 
 std::string rest::data::get_settings(net::HTTPHeaders const& headers) {
-	return error_guard(get_settings_impl, headers);
+	return get_settings_impl(headers);
 }
 
 std::string rest::data::get_mod_metadata(net::HTTPHeaders const& headers) {
-	return error_guard(get_mod_metadata_impl, headers);
+	return get_mod_metadata_impl(headers);
 }
-
-//std::string rest::data::get_text_resources(net::HTTPHeaders const& headers) {
-//	return error_guard(get_text_resources_impl, headers);
-//}
-//std::string rest::data::get_image_resources(net::HTTPHeaders const& headers) {
-//	return error_guard(get_image_resources_impl, headers);
-//}

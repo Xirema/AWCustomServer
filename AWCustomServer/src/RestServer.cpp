@@ -9,6 +9,7 @@
 #include<boost/asio/ssl.hpp>
 #include<mutex>
 #include<variant>
+#include<boost/mysql.hpp>
 
 namespace net {
 	namespace networking = boost::asio;
@@ -257,61 +258,62 @@ namespace net {
 					headers.httpHeaders[std::string{ val.name_string() }] = std::string{ val.value() };
 				}
 
-				if (request.method() == http::verb::get) {
-					if (auto it = parent->getFunctions.find(headers.target); it != parent->getFunctions.end()) {
-						try {
+				try {
+					if (request.method() == http::verb::get) {
+						if (auto it = parent->getFunctions.find(headers.target); it != parent->getFunctions.end()) {
 							response.body() = it->second(headers);
+							response.content_length(response.body().size());
 						}
-						catch (RestError const& e) {
-							return do_send(bad_request(e));
+						else {
+							return do_send(not_found(headers.target));
 						}
-						response.content_length(response.body().size());
 					}
-					else {
-						return do_send(not_found(headers.target));
-					}
-				}
-				else if (request.method() == http::verb::post) {
-					if (auto it = parent->postFunctions.find(headers.target); it != parent->postFunctions.end()) {
-						try {
+					else if (request.method() == http::verb::post) {
+						if (auto it = parent->postFunctions.find(headers.target); it != parent->postFunctions.end()) {
 							response.body() = it->second(headers, request.body());
+							response.content_length(response.body().size());
 						}
-						catch (RestError const& e) {
-							return do_send(bad_request(e));
+						else {
+							return do_send(not_found(headers.target));
 						}
-						response.content_length(response.body().size());
 					}
-					else {
-						return do_send(not_found(headers.target));
-					}
-				}
-				else if (request.method() == http::verb::put) {
-					if (auto it = parent->putFunctions.find(headers.target); it != parent->putFunctions.end()) {
-						try {
+					else if (request.method() == http::verb::put) {
+						if (auto it = parent->putFunctions.find(headers.target); it != parent->putFunctions.end()) {
 							response.body() = it->second(headers, request.body());
+							response.content_length(response.body().size());
 						}
-						catch (RestError const& e) {
-							return do_send(bad_request(e));
+						else {
+							return do_send(not_found(headers.target));
 						}
-						response.content_length(response.body().size());
+					}
+					else if (request.method() == http::verb::options) {
+						string_response response{ http::status::no_content, request.version() };
+						response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+						response.set(http::field::access_control_allow_origin, "*");
+						response.set(http::field::access_control_allow_methods, "GET, POST, PUT");
+						response.set(http::field::access_control_allow_headers, "*");
+						response.set(http::field::access_control_max_age, "86400");
+						response.keep_alive(request.keep_alive());
+						response.prepare_payload();
+						return do_send(response);
 					}
 					else {
-						return do_send(not_found(headers.target));
+						return do_send(bad_request(RestError("An error occurred: 'Unhandled HTTP-Method'", RestError::Type::BAD_REQUEST)));
 					}
 				}
-				else if (request.method() == http::verb::options) {
-					string_response response{ http::status::no_content, request.version() };
-					response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-					response.set(http::field::access_control_allow_origin, "*");
-					response.set(http::field::access_control_allow_methods, "GET, POST, PUT");
-					response.set(http::field::access_control_allow_headers, "*");
-					response.set(http::field::access_control_max_age, "86400");
-					response.keep_alive(request.keep_alive());
-					response.prepare_payload();
-					return do_send(response);
+				catch (RestError const& e) {
+					return do_send(bad_request(e));
 				}
-				else {
-					return do_send(bad_request(RestError("An error occurred: 'Unknown HTTP-Method'", RestError::Type::BAD_REQUEST)));
+				catch (boost::mysql::error_with_diagnostics const& e) {
+					return do_send(bad_request(RestError("Internal Error: '" + std::string(e.get_diagnostics().client_message()) + "'/'" + std::string(e.get_diagnostics().server_message()) + "'", RestError::Type::INTERNAL_ERROR)));
+				}
+				catch (...) {
+					try {
+						std::rethrow_exception(std::current_exception());
+					}
+					catch (std::exception const& e) {
+						return do_send(bad_request(RestError("Internal Error: " + std::string(e.what()), net::RestError::Type::INTERNAL_ERROR)));
+					}
 				}
 
 				response.prepare_payload();

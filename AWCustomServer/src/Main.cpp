@@ -34,7 +34,8 @@ int main() {
 			{"/state/getSettingState", rest::state::get_settingstate},
 
 			{"/resource/getPack", rest::resource::get_resource_pack},
-			{"/resource/getMetadata", rest::resource::get_pack_metadata}
+			{"/resource/getMetadata", rest::resource::get_pack_metadata},
+			{"/resource/listPacks", rest::resource::list_packs}
 		};
 		std::unordered_map<std::string, net::POSTFunc> postFunctions{
 			{"/data/uploadMod", rest::data::upload_mod},

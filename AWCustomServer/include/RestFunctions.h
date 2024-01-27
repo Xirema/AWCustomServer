@@ -32,5 +32,6 @@ namespace rest {
 		std::string upload_pack(net::HTTPHeaders const& headers, std::string body);
 		std::string get_resource_pack(net::HTTPHeaders const& headers);
 		std::string get_pack_metadata(net::HTTPHeaders const& headers);
+		std::string list_packs(net::HTTPHeaders const& headers);
 	}
 }

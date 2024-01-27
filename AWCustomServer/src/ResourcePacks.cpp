@@ -386,83 +386,63 @@ namespace {
 }
 
 std::string rest::resource::get_pack_metadata(net::HTTPHeaders const& headers) {
-	try {
-		sqlutil::Session session;
-		rTypes::PackMetadata metadata = get_metadata_impl(headers, session.connection);
-		json::object obj;
-		metadata.writeTo(obj);
-		return serialize(obj);
-	}
-	catch (mysql::error_with_diagnostics const& e) {
-		throw net::RestError("Internal SQL Error: '" + std::string(e.get_diagnostics().client_message()) + "'/'" + std::string(e.get_diagnostics().server_message()) + "'", net::RestError::Type::INTERNAL_ERROR);
-	}
-	catch (net::RestError const& e) {
-		throw e;
-	}
-	catch (std::runtime_error const& e) {
-		throw net::RestError("There was a problem retrieving the Resource Pack: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
-	}
-	catch (std::exception const& e) {
-		throw net::RestError("There was a problem retrieving the Resource Pack: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
-	}
-	catch (...) {
-		try {
-			std::rethrow_exception(std::current_exception());
-		}
-		catch (std::exception const& e) {
-			throw net::RestError("Unknown Error: " + std::string(e.what()), net::RestError::Type::INTERNAL_ERROR);
-		}
-	}
+	sqlutil::Session session;
+	rTypes::PackMetadata metadata = get_metadata_impl(headers, session.connection);
+	json::object obj;
+	metadata.writeTo(obj);
+	return serialize(obj);
 }
 
 std::string rest::resource::get_resource_pack(net::HTTPHeaders const& headers) {
-	try {
-		return get_pack_impl(headers);
-	}
-	catch (mysql::error_with_diagnostics const& e) {
-		throw net::RestError("Internal SQL Error: '" + std::string(e.get_diagnostics().client_message()) + "'/'" + std::string(e.get_diagnostics().server_message()) + "'", net::RestError::Type::INTERNAL_ERROR);
-	}
-	catch (net::RestError const& e) {
-		throw e;
-	}
-	catch (std::runtime_error const& e) {
-		throw net::RestError("There was a problem retrieving the Resource Pack: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
-	}
-	catch (std::exception const& e) {
-		throw net::RestError("There was a problem retrieving the Resource Pack: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
-	}
-	catch (...) {
-		try {
-			std::rethrow_exception(std::current_exception());
-		}
-		catch (std::exception const& e) {
-			throw net::RestError("Unknown Error: " + std::string(e.what()), net::RestError::Type::INTERNAL_ERROR);
-		}
-	}
+	return get_pack_impl(headers);
 }
 
 std::string rest::resource::upload_pack(net::HTTPHeaders const& headers, std::string body) {
 	try {
 		return upload_pack_impl(headers, json::parse(body));
 	}
-	catch (mysql::error_with_diagnostics const& e) {
-		throw net::RestError("Internal SQL Error: '" + std::string(e.get_diagnostics().client_message()) + "'/'" + std::string(e.get_diagnostics().server_message()) + "'", net::RestError::Type::INTERNAL_ERROR);
-	}
-	catch (net::RestError const& e) {
-		throw e;
-	}
 	catch (std::runtime_error const& e) {
 		throw net::RestError("There was a problem parsing the Resource Pack: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
 	}
-	catch (std::exception const& e) {
-		throw net::RestError("There was a problem parsing the Resource Pack: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
+}
+
+std::string rest::resource::list_packs(net::HTTPHeaders const& headers) {
+	sqlutil::Session session;
+	auto& connection = session.connection;
+
+	ParameterPack parameters;
+	std::string getPacksSql = R"SQL(
+		select 
+			*
+		from
+			RESOURCE.PACK
+		where
+			1 = 1
+	)SQL";
+	if (auto it = headers.httpHeaders.find("include-old-packs"); it == headers.httpHeaders.end() || it->second == "false") {
+		getPacksSql += R"SQL(
+			and EXPIRED is null
+		)SQL";
 	}
-	catch (...) {
-		try {
-			std::rethrow_exception(std::current_exception());
-		}
-		catch (std::exception const& e) {
-			throw net::RestError("Unknown Error: " + std::string(e.what()), net::RestError::Type::INTERNAL_ERROR);
-		}
+	auto getPacksStatement = connection.prepare_statement(getPacksSql);
+	mysql::results results;
+	connection.execute(
+		getPacksStatement.bind()
+		,
+		results
+	);
+
+	json::array ret;
+	for (auto const& row : results.rows()) {
+		rTypes::PackMetadata newPack;
+		newPack.packId = std::to_string(row.at(0).as_int64());
+		newPack.name = row.at(1).as_string();
+		newPack.version = row.at(2).as_string();
+		mysql::datetime created = row.at(3).as_datetime();
+		newPack.created = std::to_string(created.as_time_point().time_since_epoch().count());
+		json::object obj;
+		newPack.writeTo(obj);
+		ret.push_back(std::move(obj));
 	}
+	return serialize(ret);
 }
