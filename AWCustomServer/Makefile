@@ -1,5 +1,5 @@
 includeDir := include
-compileCommand := g++ -I$(includeDir) -Wall -pedantic-errors -Werror -Wno-unused-function -Wno-reorder -O3 -std=c++20
+compileCommand := g++ -I$(includeDir) -Wall -pedantic-errors -Werror -O3 -std=c++20
 files := Archive.o DataLookup.o DataUpload.o Main.o Properties.o RestServer.o SQLUtil.o StateLookup.o ResourcePacks.o
 server: $(files)
 	g++ -o server $(files) -lboost_system -lboost_json -lssl -lcrypto -ldl

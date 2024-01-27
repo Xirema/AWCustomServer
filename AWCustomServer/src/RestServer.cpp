@@ -481,10 +481,10 @@ namespace net {
 
 	public:
 		RestServerImpl(std::string_view name, uint16_t port, std::optional<SSLCert> sslCert, uint32_t maxThreadCount) :
-			sslCert(std::move(sslCert)),
 			ioContext(maxThreadCount <= 1'024 ? maxThreadCount : 1'024),
 			work_ptr(std::make_unique<networking::io_context::work>(ioContext)),
 			acceptor(networking::make_strand(ioContext)),
+			sslCert(std::move(sslCert)),
 			sslContext(ssl::context::tlsv12_server) {
 			shouldStop = false;
 			//Does 1024 make sense as an upper limit? IDK lol
