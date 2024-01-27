@@ -675,7 +675,6 @@ namespace {
 			return func(headers);
 		}
 		catch (mysql::error_with_diagnostics const& e) {
-			auto const& diagnostics = e.get_diagnostics();
 			throw net::RestError("Internal SQL Error: '" + std::string(e.get_diagnostics().client_message()) + "'/'" + std::string(e.get_diagnostics().server_message()) + "'", net::RestError::Type::INTERNAL_ERROR);
 		}
 		catch (std::runtime_error const& e) {

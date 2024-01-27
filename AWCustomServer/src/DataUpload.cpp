@@ -49,7 +49,7 @@ namespace {
 			)SQL");
 			for (auto const& defaultResourcePack : *metadata.defaultResourcePacks) {
 				results = {};
-				connection.execute(statement.bind(modId, metadata.name, order, metadata.version), results);
+				connection.execute(statement.bind(modId, defaultResourcePack.name, order, defaultResourcePack.version), results);
 				order++;
 			}
 		}

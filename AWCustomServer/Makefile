@@ -1,6 +1,6 @@
 includeDir := include
 compileCommand := g++ -I$(includeDir) -Wall -pedantic-errors -Werror -Wno-unused-function -Wno-reorder -O3 -std=c++20
-files := Archive.o DataLookup.o DataUpload.o Main.o Properties.o RestServer.o SQLUtil.o StateLookup.o
+files := Archive.o DataLookup.o DataUpload.o Main.o Properties.o RestServer.o SQLUtil.o StateLookup.o ResourcePacks.o
 server: $(files)
 	g++ -o server $(files) -lboost_system -lboost_json -lssl -lcrypto -ldl
 Archive.o: src/Archive.cpp
@@ -19,6 +19,8 @@ SQLUtil.o: src/SQLUtil.cpp
 	$(compileCommand) -c src/SQLUtil.cpp -o SQLUtil.o
 StateLookup.o: src/StateLookup.cpp
 	$(compileCommand) -c src/StateLookup.cpp -o StateLookup.o
+ResourcePacks.o: src/ResourcePacks.cpp
+	$(compileCommand) -c src/ResourcePacks.cpp -o ResourcePacks.o
 clean:
 	rm -f *.o
 	rm -f server
