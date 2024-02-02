@@ -1244,62 +1244,6 @@ namespace db {
 			return ret;
 		}
 
-		std::optional<int64_t> getModId(mysql::tcp_ssl_connection& connection, net::HTTPHeaders const& headers) {
-			if (auto ret = headers.httpHeaders.find("modid"); ret != headers.httpHeaders.end()) {
-				return std::stoll(ret->second);
-			}
-			std::string_view modName;
-			std::optional<std::string_view> modVersion;
-			if (auto ret = headers.httpHeaders.find("modname"); ret != headers.httpHeaders.end()) {
-				modName = ret->second;
-			}
-			else {
-				throw net::RestError("No ModId or ModName specified for lookup.", net::RestError::Type::INVALID_DATA);
-			}
-			if (auto ret = headers.httpHeaders.find("modversion"); ret != headers.httpHeaders.end()) {
-				modVersion = ret->second;
-			}
-			std::string sql = R"SQL(
-			select
-				ID
-			from
-				DATA.MOD M
-			where
-				NAME = ?
-		)SQL";
-			ParameterPack parameters;
-			parameters.emplace_back(modName);
-			if (modVersion) {
-				sql += R"SQL(
-			and VERSION = ?
-			)SQL";
-				parameters.emplace_back(*modVersion);
-			}
-			else {
-				sql += R"SQL(
-			and EXPIRED is null
-			)SQL";
-			}
-			sql += R"SQL(
-			order by ID desc
-		)SQL";
-
-			auto statement = connection.prepare_statement(sql);
-			mysql::results results;
-			connection.execute(
-				statement.bind(
-					parameters.cbegin(),
-					parameters.cend()
-				)
-				,
-				results
-			);
-			if (results.size() == 0) {
-				return {};
-			}
-			return results.rows().at(0).at(0).as_int64();
-		}
-
 		template<typename T>
 		std::optional<T> get(mysql::field_view const& value) {
 			if (value.is_null()) {
