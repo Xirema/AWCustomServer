@@ -12,6 +12,9 @@ namespace net {
 		std::string target;
 		std::unordered_map<std::string, std::string> httpHeaders;
 		std::unordered_map<std::string, std::string> httpParameters;
+
+		std::optional<std::string_view> getHeader(std::string const& header) const;
+		std::optional<std::string_view> getParameter(std::string const& parameter) const;
 	};
 	using GETFunc = std::function<std::string(HTTPHeaders const&)>;
 	using POSTFunc = std::function<std::string(HTTPHeaders const&, std::string)>;

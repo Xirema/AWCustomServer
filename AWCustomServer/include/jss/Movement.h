@@ -1,5 +1,6 @@
 #pragma once
 #include<jss/jssinclude.h>
+#include<sstream>
 
 namespace dTypes{
     struct MovementClass{

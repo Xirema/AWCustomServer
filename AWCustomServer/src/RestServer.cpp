@@ -475,4 +475,18 @@ namespace net {
 	void RestServer::printRequests(bool value) {
 		impl->printRequests(value);
 	}
+
+
+	std::optional<std::string_view> HTTPHeaders::getHeader(std::string const& header) const {
+		if (auto it = this->httpHeaders.find(header); it != this->httpHeaders.end()) {
+			return it->second;
+		}
+		return {};
+	}
+	std::optional<std::string_view> HTTPHeaders::getParameter(std::string const& parameter) const {
+		if (auto it = this->httpParameters.find(parameter); it != this->httpParameters.end()) {
+			return it->second;
+		}
+		return {};
+	}
 }
