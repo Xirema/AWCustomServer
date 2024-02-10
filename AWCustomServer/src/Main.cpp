@@ -3,6 +3,13 @@
 #include<Properties.h>
 #include<iostream>
 #include<Cert.h>
+#include<signal.h>
+
+static std::atomic_bool terminated = false;
+
+void terminationHandler(int signal) {
+	terminated = true;
+}
 
 int main() {
 	try {
@@ -54,9 +61,11 @@ int main() {
 		for (auto const& [name, func] : putFunctions) {
 			std::cout << "  PUT:  " << name << std::endl;
 		}
-		std::cout << "Press [Enter] to stop the server." << std::endl;
-		std::string line;
-		std::getline(std::cin, line);
+
+		signal(SIGTERM, terminationHandler);
+
+		while (!terminated) {}
+		
 	}
 	catch (std::runtime_error const& e) {
 		std::cerr << e.what() << std::endl;
