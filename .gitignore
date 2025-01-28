@@ -16204,3 +16204,7 @@ SQLTesting/x64/Debug/SQLTesting.ilk
 /Library
 /SQLTesting/x64/Release
 /AWCustomServer/x64/Release
+build
+release
+.vscode
+debug

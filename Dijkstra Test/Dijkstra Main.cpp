@@ -5,6 +5,7 @@
 #include<algorithm>
 #include<numeric>
 #include<boost/functional/hash.hpp>
+#include<string>
 
 #include<iostream>
 #include<iomanip>

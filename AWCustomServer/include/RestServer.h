@@ -26,6 +26,8 @@ namespace net {
 			BAD_REQUEST, INTERNAL_ERROR, INVALID_DATA, NOT_FOUND
 		};
 		Type type;
+		RestError():RestError("", Type::NOT_FOUND) {}
+		RestError(std::string message, Type type) : message(std::move(message)), type(type) {}
 	};
 	struct SSLCert {
 		std::string key;

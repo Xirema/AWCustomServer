@@ -24,6 +24,7 @@ namespace rest {
 		std::string get_terrains(net::HTTPHeaders const& headers);
 		std::string get_commanders(net::HTTPHeaders const& headers);
 		std::string get_movements(net::HTTPHeaders const& headers);
+		std::string get_movement_rules(net::HTTPHeaders const& headers);
 		std::string get_players(net::HTTPHeaders const& headers);
 		std::string get_pues(net::HTTPHeaders const& headers);
 		std::string get_aues(net::HTTPHeaders const& headers);
@@ -33,6 +34,7 @@ namespace rest {
 		std::string get_ages(net::HTTPHeaders const& headers);
 		std::string get_settings(net::HTTPHeaders const& headers);
 		std::string get_mod_metadata(net::HTTPHeaders const& headers);
+		std::string get_mods(net::HTTPHeaders const& headers);
 	}
 
 	namespace state {
@@ -58,6 +60,7 @@ namespace db {
 	std::vector<dTypes::TerrainType> get_terrains(int64_t modId, std::optional<std::string_view> const& filter);
 	std::vector<dTypes::CommanderType> get_commanders(int64_t modId, std::optional<std::string_view> const& filter);
 	std::vector<dTypes::MovementClass> get_movements(int64_t modId, std::optional<std::string_view> const& filter);
+	std::vector<dTypes::MovementRule> get_movement_rules(int64_t modId, std::optional<std::string_view> const& filter);
 	std::vector<dTypes::PlayerType> get_players(int64_t modId, std::optional<std::string_view> const& filter);
 	std::vector<dTypes::PassiveUnitEffect> get_pues(int64_t modId, std::optional<std::string_view> const& filter);
 	std::vector<dTypes::ActiveUnitEffect> get_aues(int64_t modId, std::optional<std::string_view> const& filter);
@@ -67,6 +70,7 @@ namespace db {
 	std::vector<dTypes::ActiveGlobalEffect> get_ages(int64_t modId, std::optional<std::string_view> const& filter);
 	std::vector<dTypes::Settings> get_settings(int64_t modId, std::optional<std::string_view> const& filter);
 	dTypes::ModMetadata get_mod_metadata(std::optional<int64_t> const& modId, std::optional<std::string_view> const& name, std::optional<std::string_view> const& version);
+	std::vector<dTypes::ModMetadata> get_mods(std::optional<bool> const& showExpired, std::optional<std::string_view> const& name, std::optional<std::string_view> const& author);
 	sTypes::GameState get_gamestate(int64_t gameId);
 	std::vector<sTypes::PlayerState> get_playerstates(int64_t gameId);
 	std::vector<sTypes::UnitState> get_unitstates(int64_t gameId);

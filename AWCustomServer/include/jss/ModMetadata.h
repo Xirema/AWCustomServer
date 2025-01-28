@@ -103,6 +103,7 @@ namespace dTypes {
         std::vector<WeaponType> weapons;
         std::vector<TerrainType> terrains;
         std::vector<MovementClass> movements;
+        std::vector<MovementRule> movementRules;
         std::vector<CommanderType> commanders;
         std::vector<PlayerType> players;
         std::vector<PassiveUnitEffect> passiveUnitEffects;
@@ -220,6 +221,28 @@ namespace dTypes {
             }
             else {
                 throw std::runtime_error("'movements' was missing in ModData");
+            }
+            if (auto ptr = obj.if_contains("movementRules")) {
+                if (auto tPtr = ptr->if_array()) {
+                    std::vector<MovementRule> arr;
+                    for (auto const& val : *tPtr) {
+                        if (auto vPtr = val.if_object()) {
+                            MovementRule v;
+                            v.readFrom(*vPtr);
+                            arr.push_back(std::move(v));
+                        }
+                        else {
+                            throw std::runtime_error("Item in array 'movementRules' in ModData was expected to be object, but was of wrong type.");
+                        }
+                    }
+                    movementRules = std::move(arr);
+                }
+                else {
+                    throw std::runtime_error("Expected 'movementRules' as array in ModData, but was of type " + std::string(to_string(ptr->kind())) + ".");
+                }
+            }
+            else {
+                throw std::runtime_error("'movementRules' was missing in ModData");
             }
             if (auto ptr = obj.if_contains("commanders")) {
                 if (auto tPtr = ptr->if_array()) {
@@ -465,6 +488,15 @@ namespace dTypes {
                     arr.push_back(std::move(obj));
                 }
                 obj["movements"] = std::move(arr);
+            }
+            {
+                json::array arr;
+                for (auto const& val : movementRules) {
+                    json::object obj;
+                    val.writeTo(obj);
+                    arr.push_back(std::move(obj));
+                }
+                obj["movementRules"] = std::move(arr);
             }
             {
                 json::array arr;
