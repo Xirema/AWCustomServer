@@ -1,5 +1,9 @@
 #include<RestFunctions.h>
-#include<StateTypes.h>
+#include<jss/GameState.h>
+#include<jss/UnitState.h>
+#include<jss/PlayerState.h>
+#include<jss/SettingsState.h>
+#include<jss/TerrainState.h>
 #include<random>
 #include<boost/mysql.hpp>
 
@@ -50,7 +54,7 @@ namespace {
     if (gameId != -1) {
       throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
     }
-    statetypes::GameState gameState;
+    sTypes::GameState gameState;
     gameState.active = true;
     gameState.day = 1;
     gameState.id = "-1";
@@ -67,7 +71,7 @@ namespace {
     if (gameId != -1) {
       throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
     }
-    std::vector<statetypes::PlayerState> playerStates;
+    std::vector<sTypes::PlayerState> playerStates;
     auto& player1 = playerStates.emplace_back();
     player1.alive = true;
     player1.armyColor = "os";
@@ -106,7 +110,7 @@ namespace {
     if (gameId != -1) {
       throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
     }
-    std::vector<statetypes::UnitState> unitStates;
+    std::vector<sTypes::UnitState> unitStates;
     for (int i = 0; i < 8; i++) {
       auto& unit = unitStates.emplace_back();
       unit.id = i + 1;
@@ -152,7 +156,7 @@ namespace {
     if (gameId != -1) {
       throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
     }
-    std::vector<statetypes::TerrainState> terrainStates;
+    std::vector<sTypes::TerrainState> terrainStates;
     int nextId = 0;
     std::minstd_rand engine{ static_cast<uint32_t>(nextId + 55) };
     std::uniform_int_distribution<uint32_t> dist{ 0, 6 };
@@ -186,7 +190,7 @@ namespace {
     if (gameId != -1) {
       throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
     }
-    statetypes::SettingsState settingState;
+    sTypes::SettingsState settingState;
     settingState.id = 1;
     settingState.fogOfWar = false;
     settingState.teams = false;
