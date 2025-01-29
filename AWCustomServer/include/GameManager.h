@@ -2,25 +2,16 @@
 #include<RestFunctions.h>
 #include<mutex>
 #include<Coord.h>
+#include<jss/Game.h>
 #include<Id.h>
 #include<chrono>
 
 namespace game {
-  using coord::Coord;
   template<typename CachedObject>
   struct Cached {
     CachedObject object;
     std::chrono::system_clock::time_point expiration;
     std::mutex gameMutex;
-  };
-  struct Game {
-    sTypes::GameState gameState;
-    std::unordered_map<int64_t, sTypes::PlayerState> playersById;
-    std::unordered_map<int64_t, sTypes::UnitState> unitsById;
-    std::unordered_map<int64_t, sTypes::TerrainState> terrainsById;
-    sTypes::SettingsState settings;
-    std::unordered_map<Coord, sTypes::TerrainState*> terrainsByCoordinate;
-    std::unordered_map<Coord, sTypes::UnitState*> unitsByCoordinate;
   };
   using GamePtr = std::shared_ptr<Cached<Game>>;
   using ModPtr = std::shared_ptr<Cached<dTypes::ModData>>;
