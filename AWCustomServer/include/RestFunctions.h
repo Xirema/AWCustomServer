@@ -75,7 +75,7 @@ namespace db {
 	std::vector<sTypes::PlayerState> get_playerstates(int64_t gameId);
 	std::vector<sTypes::UnitState> get_unitstates(int64_t gameId);
 	std::vector<sTypes::TerrainState> get_terrainstates(int64_t gameId);
-	std::vector<sTypes::SettingsState> get_settingstate(int64_t gameId);
+	sTypes::SettingsState get_settingstate(int64_t gameId);
 	bool upload_pack(rTypes::ResourcePack const& pack);
 	rTypes::ResourcePack get_resource_pack(int64_t packId);
 	rTypes::PackMetadata get_pack_metadata(std::optional<std::string_view> name, std::optional<std::string_view> version, std::optional<int64_t> packId);
