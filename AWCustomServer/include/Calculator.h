@@ -32,6 +32,14 @@ namespace calc {
     std::function<bool(dTypes::PassiveUnitEffect const*)> filter = [](auto && effect) {return true;}
   );
 
+  std::vector<dTypes::PassiveTerrainEffect const*>
+  getAllPassiveTerrainEffects(
+    sTypes::TerrainState const& terrain,
+    game::Game const& game,
+    dTypes::ModData const& modData,
+    std::function<bool(dTypes::PassiveTerrainEffect const*)> filter = [](auto && effect) {return true;}
+  );
+
   std::vector<dTypes::PassiveGlobalEffect const*>
   getAllPassiveGlobalEffects(
     game::Game const& game,
@@ -43,5 +51,10 @@ namespace calc {
     dTypes::UnitType const& unitType, 
     std::string_view terrainName, 
     dTypes::PassiveUnitEffect const& effect
+  );
+
+  bool terrainMatchesEffect(
+    dTypes::TerrainType const& terrainType,
+    dTypes::PassiveTerrainEffect const& effect
   );
 }

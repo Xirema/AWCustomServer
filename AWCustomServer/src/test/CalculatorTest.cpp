@@ -11,32 +11,22 @@ int main() {
     auto modPtr = manager.getMod(modId);
 
     for(auto const& [id, unit] : gamePtr->object.unitsById) {
+      auto terrain = gamePtr->object.terrainsByCoordinate.at(unit);
+      if(!terrain) {
+        throw std::runtime_error("No Terrain under unit at " + std::vformat("{},{}", std::make_format_args(unit.x, unit.y)));
+      }
       auto movementRange = calc::calculateUnitMovementRange(unit, gamePtr->object, modPtr->object);
       auto visionRange = calc::calculateUnitVisionRange(unit, gamePtr->object, modPtr->object);
       auto unitOwner = calc::getUnitOwner(unit, gamePtr->object);
+      if(!unitOwner) {
+        throw std::runtime_error("Unable to find owner for unit at " + std::vformat("{},{}", std::make_format_args(unit.x, unit.y)));
+      }
       std::print(
-        "{} at {},{} owned by {}:\n",
+        "{} at {},{} standing on {} owned by {}:\n",
         unit.name,
         unit.x, unit.y,
-        unitOwner ? unitOwner->commanderName : "<no one>"
-      );
-      std::print(
-        "  Movement Speed: {}\n", movementRange
-      );
-      std::print(
-        "  Vision Range: {}\n", visionRange
-      );
-    }
-    gamePtr->object.gameState.variant="rain";
-    for(auto const& [id, unit] : gamePtr->object.unitsById) {
-      auto movementRange = calc::calculateUnitMovementRange(unit, gamePtr->object, modPtr->object);
-      auto visionRange = calc::calculateUnitVisionRange(unit, gamePtr->object, modPtr->object);
-      auto unitOwner = calc::getUnitOwner(unit, gamePtr->object);
-      std::print(
-        "{} at {},{} owned by {}:\n",
-        unit.name,
-        unit.x, unit.y,
-        unitOwner ? unitOwner->commanderName : "<no one>"
+        terrain->name,
+        unitOwner->commanderName
       );
       std::print(
         "  Movement Speed: {}\n", movementRange

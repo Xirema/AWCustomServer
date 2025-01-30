@@ -195,7 +195,103 @@ calc::getAllPassiveUnitEffects(
   return allEffects;
 }
 
+std::vector<dTypes::PassiveTerrainEffect const*>
+calc::getAllPassiveTerrainEffects(
+  sTypes::TerrainState const& terrain,
+  game::Game const& game,
+  dTypes::ModData const& modData,
+  std::function<bool(dTypes::PassiveTerrainEffect const*)> filter
+) {
+  std::vector<dTypes::PassiveTerrainEffect const*> allEffects;
+  auto terrainType = find(modData.terrains, terrain.name);
+  if(!terrainType) {
+    throw std::runtime_error("Unable to find Terrain Type '" + terrain.name + "'");
+  }
+  auto activePlayerId = game.gameState.playerOrder.at(game.gameState.playerTurn);
+  auto activePlayer = find(game.playersById, i64(activePlayerId));
+  if(!activePlayer) {
+    throw std::runtime_error("Unable to find Active Player '" + activePlayerId + "'.");
+  }
+  auto terrainPlayer = find(game.playersById, i64(terrain.owner.value_or("-1")));
+  bool terrainSameAsPlayer = terrain.owner == activePlayerId;
+  bool terrainAllyOfPlayer = terrainPlayer ? (terrainPlayer->team && terrainPlayer->team == activePlayer->team) : false;
+  bool terrainNeutral = !terrain.owner;
+  bool terrainEnemyOfPlayer = terrainPlayer ? (!terrainPlayer->team || terrainPlayer->team != activePlayer->team) : false;
+  for(auto const& [id, player] : game.playersById) {
+    std::vector<dTypes::PassiveTerrainEffect const*> playerEffects;
+    bool powerSameAsPlayer = player.id == activePlayerId;
+    bool powerAllyOfPlayer = player.id != activePlayerId 
+      && activePlayer 
+      && activePlayer->team 
+      && activePlayer->team == player.team;
+    bool powerEnemyOfPlayer = player.id != activePlayerId
+      && activePlayer
+      && (!activePlayer->team || activePlayer->team != player.team);
+    dTypes::PlayerType const* playerType = find(modData.players, player.id);
+    dTypes::CommanderType const* baselineType = find(modData.commanders, playerType ? playerType->commanderTypeMod.value_or("") : "");
+    dTypes::CommanderType const* commanderType = find(modData.commanders, player.commanderName);
+    if(!game.settings.coPowers) {
+      commanderType = nullptr;
+    }
+    if(baselineType) {
+      if(baselineType->passiveTerrainEffectsD2d) {
+        playerEffects = append(playerEffects, findAll(modData.passiveTerrainEffects, *baselineType->passiveTerrainEffectsD2d));
+      }
+      if(player.powerActive == "cop" && baselineType->passiveTerrainEffectsCop) {
+        playerEffects = append(playerEffects, findAll(modData.passiveTerrainEffects, *baselineType->passiveTerrainEffectsCop));
+      }
+      if(player.powerActive == "scop" && baselineType->passiveTerrainEffectsScop) {
+        playerEffects = append(playerEffects, findAll(modData.passiveTerrainEffects, *baselineType->passiveTerrainEffectsScop));
+      }
+    }
+    if(commanderType) {
+      if(commanderType->passiveTerrainEffectsD2d) {
+        playerEffects = append(playerEffects, findAll(modData.passiveTerrainEffects, *commanderType->passiveTerrainEffectsD2d));
+      }
+      if(player.powerActive == "cop" && commanderType->passiveTerrainEffectsCop) {
+        playerEffects = append(playerEffects, findAll(modData.passiveTerrainEffects, *commanderType->passiveTerrainEffectsCop));
+      }
+      if(player.powerActive == "scop" && commanderType->passiveTerrainEffectsScop) {
+        playerEffects = append(playerEffects, findAll(modData.passiveTerrainEffects, *commanderType->passiveTerrainEffectsScop));
+      }
+    }
+    std::erase_if(playerEffects, [&](dTypes::PassiveTerrainEffect const* effect) {
+      bool targetsSelf = terrainSameAsPlayer 
+        && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "own" || target == "self";});
+      bool targetsAlly = terrainAllyOfPlayer 
+        && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "ally";});
+      bool targetsEnemy = terrainEnemyOfPlayer
+        && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "enemy";});
+      bool targetsNeutral = terrainNeutral
+        && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "neutral";});
+      if(!(targetsSelf || targetsAlly || targetsEnemy || targetsNeutral)) {
+        return true;
+      }
 
+      bool affectsSelf = powerSameAsPlayer
+        && ranges::any_of(effect->affects.value_or(std::vector<std::string>{}), [](std::string const& affect){return affect == "own" || affect == "self";});
+      bool affectsAlly = powerAllyOfPlayer
+        && ranges::any_of(effect->affects.value_or(std::vector<std::string>{}), [](std::string const& affect){return affect == "ally";});
+      bool affectsEnemy = powerEnemyOfPlayer
+        && ranges::any_of(effect->affects.value_or(std::vector<std::string>{}), [](std::string const& affect){return affect == "enemy";});
+      if(!(affectsSelf || affectsAlly || affectsEnemy)) {
+        return true;
+      }
+
+      if(!terrainMatchesEffect(*terrainType, *effect)) {
+        return true;
+      }
+
+      if(!filter(effect)) {
+        return true;
+      }
+
+      return false;
+    });
+    allEffects = append(allEffects, playerEffects);
+  }
+  return allEffects;
+}
 
 std::vector<dTypes::PassiveGlobalEffect const*>
 calc::getAllPassiveGlobalEffects(
@@ -314,5 +410,20 @@ bool calc::unitMatchesEffect(
   ) {
     return false;
   }
+  return true;
+}
+
+bool calc::terrainMatchesEffect(
+  dTypes::TerrainType const& terrainType,
+  dTypes::PassiveTerrainEffect const& effect
+) {
+  if(
+    effect.terrainRequired
+    && effect.terrainRequired->size() > 0
+    && ranges::none_of(*effect.terrainRequired, [&](std::string terrainNameReq){return terrainType.name == terrainNameReq;})
+  ) {
+    return false;
+  }
+  //TODO: Passive Terrain Effects specify "classifications required". Figure out what that means.
   return true;
 }
