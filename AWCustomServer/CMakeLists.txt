@@ -10,7 +10,7 @@ add_executable(Server
   src/Archive.cpp src/Main.cpp src/Properties.cpp src/ResourcePacks.cpp
   src/RestFunctions.cpp src/RestServer.cpp src/SQLUtil.cpp
   src/StateLookup.cpp src/db/Data.cpp src/jss/Types.cpp src/GameManager.cpp
-  src/db/State.cpp
+  src/db/State.cpp src/Calculator.cpp
   )
 target_link_libraries(Server ${Boost_LIBRARIES} ssl crypto dl)
 
