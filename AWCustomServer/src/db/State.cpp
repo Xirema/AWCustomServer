@@ -10,7 +10,7 @@ namespace db {
     gameState.active = true;
     gameState.day = 1;
     gameState.id = "-1";
-    gameState.playerOrder = { "1","2" };
+    gameState.playerOrder = { "9999","10000" };
     gameState.playerTurn = 0;
     gameState.variant = "normal";
     return gameState;
@@ -53,7 +53,7 @@ namespace db {
     for (int i = 0; i < 8; i++)
     {
       auto &unit = unitStates.emplace_back();
-      unit.id = i + 1;
+      unit.id = std::to_string(i + 1);
       unit.y = i;
       unit.x = 1;
       unit.active = true;
@@ -74,7 +74,7 @@ namespace db {
     for (int i = 0; i < 8; i++)
     {
       auto &unit = unitStates.emplace_back();
-      unit.id = i + 9;
+      unit.id = std::to_string(i + 9);
       unit.y = i;
       unit.x = 6;
       unit.active = true;
@@ -100,7 +100,7 @@ namespace db {
       for (int j = 0; j < 50; j++)
       {
         auto &terrain = terrainStates.emplace_back();
-        terrain.id = nextId++;
+        terrain.id = std::to_string(nextId++);
         terrain.name = "plains";
         terrain.x = i;
         terrain.y = j;
@@ -122,7 +122,7 @@ namespace db {
       throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
     }
     sTypes::SettingsState settingState;
-    settingState.id = 1;
+    settingState.id = std::to_string(1);
     settingState.fogOfWar = false;
     settingState.teams = false;
     settingState.variant = {{"normal", 100}};

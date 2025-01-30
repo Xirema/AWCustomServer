@@ -8,8 +8,7 @@ namespace game {
     return manager;
   }
 
-  GamePtr GameManager::getGame(std::string_view sid) {
-    auto id = i64(sid);
+  GamePtr GameManager::getGame(int64_t id) {
     std::unique_lock lock{cacheMutex};
     GamePtr ret;
     auto it = cachedGames.find(id);
@@ -22,19 +21,19 @@ namespace game {
       auto playersFuture = std::async([id]{return db::get_playerstates(id);});
       auto settingsFuture = std::async([id]{return db::get_settingstate(id);});
       game.gameState = gameStateFuture.get();
-      for(auto & unit : unitsFuture.get()) {
+      for(auto const& unit : unitsFuture.get()) {
         auto uid = i64(unit.id);
-        auto & newUnit = game.unitsById[uid] = std::move(unit);
+        auto & newUnit = game.unitsById[uid] = unit;
         game.unitsByCoordinate[Coord{newUnit.x, newUnit.y}] = &newUnit;
       }
-      for(auto & terrain : terrainsFuture.get()) {
+      for(auto const& terrain : terrainsFuture.get()) {
         auto tid = i64(terrain.id);
-        auto & newTerrain = game.terrainsById[tid] = std::move(terrain);
+        auto & newTerrain = game.terrainsById[tid] = terrain;
         game.terrainsByCoordinate[Coord{newTerrain.x, newTerrain.y}] = &newTerrain;
       }
-      for(auto & player : playersFuture.get()) {
+      for(auto const& player : playersFuture.get()) {
         auto pid = i64(player.id);
-        game.playersById[pid] = std::move(player);
+        game.playersById[pid] = player;
       }
       game.settings = settingsFuture.get();
     } else {
@@ -46,8 +45,7 @@ namespace game {
     return ret;
   }
 
-  ModPtr GameManager::getMod(std::string_view sid) {
-    auto id = i64(sid);
+  ModPtr GameManager::getMod(int64_t id) {
     std::unique_lock lock{cacheMutex};
     ModPtr ret;
     auto it = cachedMods.find(id);

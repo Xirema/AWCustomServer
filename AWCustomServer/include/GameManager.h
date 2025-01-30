@@ -22,8 +22,8 @@ namespace game {
     std::unordered_map<int64_t, ModPtr> cachedMods;
   public:
     static GameManager& instance();
-    GamePtr getGame(std::string_view id);
-    ModPtr getMod(std::string_view id);
+    GamePtr getGame(int64_t id);
+    ModPtr getMod(int64_t id);
     void cleanup();
   };
 }

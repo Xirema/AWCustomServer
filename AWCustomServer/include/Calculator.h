@@ -8,6 +8,21 @@ namespace calc {
     game::Game const& game,
     dTypes::ModData const& modData
   );
+  int64_t calculateUnitVisionRange(
+    sTypes::UnitState const& unit,
+    game::Game const& game,
+    dTypes::ModData const& modData
+  );
+
+  sTypes::PlayerState const* getUnitOwner(
+    sTypes::UnitState const& unit, 
+    game::Game const& game
+  );
+
+  std::string getCurrentVariant(
+    game::Game const& game,
+    dTypes::ModData const& modData
+  );
 
   std::vector<dTypes::PassiveUnitEffect const*>
   getAllPassiveUnitEffects(
@@ -15,6 +30,13 @@ namespace calc {
     game::Game const& game,
     dTypes::ModData const& modData,
     std::function<bool(dTypes::PassiveUnitEffect const*)> filter = [](auto && effect) {return true;}
+  );
+
+  std::vector<dTypes::PassiveGlobalEffect const*>
+  getAllPassiveGlobalEffects(
+    game::Game const& game,
+    dTypes::ModData const& modData,
+    std::function<bool(dTypes::PassiveGlobalEffect const*)> filter = [](auto && effect) {return true;}
   );
 
   bool unitMatchesEffect(

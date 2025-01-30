@@ -2,6 +2,7 @@
 #include<ranges>
 #include<algorithm>
 #include<Id.h>
+#include<print>
 namespace ranges = std::ranges;
 namespace views = std::views;
 using coord::Coord;
@@ -60,10 +61,6 @@ int64_t calc::calculateUnitMovementRange(
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
-  sTypes::PlayerState const* owningPlayer = find(game.playersById, i64(unit.owner.value_or("-1")));
-  if(!owningPlayer) {
-    return 0;
-  }
   auto impactingEffects = getAllPassiveUnitEffects(unit, game, modData, [](auto && effect) {return effect->movementMod.has_value();});
   auto movementRange = unitType->movementRange;
   movementRange += ranges::fold_left(impactingEffects, 0ll, [](int64_t sum, dTypes::PassiveUnitEffect const* effect) {
@@ -71,6 +68,50 @@ int64_t calc::calculateUnitMovementRange(
   });
   movementRange = std::min(unit.fuel, movementRange);
   return movementRange;
+}
+
+int64_t calc::calculateUnitVisionRange(
+  sTypes::UnitState const& unit,
+  game::Game const& game,
+  dTypes::ModData const& modData
+) {
+  dTypes::UnitType const* unitType = find(modData.units, unit.name);
+  if(!unitType) {
+    throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
+  }
+  auto impactingEffects = getAllPassiveUnitEffects(unit, game, modData, [](dTypes::PassiveUnitEffect const* effect) {
+    return effect->visionMod.has_value() || effect->visionVariantMods.has_value();
+  });
+  auto visionRange = unitType->visionRange;
+  auto currentVariant = getCurrentVariant(game, modData);
+  visionRange += ranges::fold_left(impactingEffects, 0ll, [&](int64_t sum, dTypes::PassiveUnitEffect const* effect) {
+    if(effect->visionVariantMods) {
+      if(auto it = effect->visionVariantMods->find(currentVariant); it != effect->visionVariantMods->end()) {
+        sum += it->second;
+      }
+    }
+    return sum + effect->visionMod.value_or(0);
+  });
+  return visionRange;
+}
+
+std::string calc::getCurrentVariant(
+  game::Game const& game,
+  dTypes::ModData const& modData
+) {
+  auto impactingEffects = getAllPassiveGlobalEffects(game, modData, [](dTypes::PassiveGlobalEffect const* effect) {return effect->variantMod.has_value();});
+  if(impactingEffects.size() == 0) {
+    return game.gameState.variant;
+  }
+  //TODO: Should this have a strict priority hierarchy, instead of always using the most recent player?
+  return impactingEffects.back()->variantMod.value_or("default");
+}
+
+sTypes::PlayerState const* calc::getUnitOwner(
+  sTypes::UnitState const& unit, 
+  game::Game const& game
+) {
+  return find(game.playersById, i64(unit.owner.value_or("-1")));
 }
 
 std::vector<dTypes::PassiveUnitEffect const*>
@@ -100,7 +141,7 @@ calc::getAllPassiveUnitEffects(
       && owningPlayer
       && (!owningPlayer->team || owningPlayer->team != player.team);
     std::vector<dTypes::PassiveUnitEffect const*> playerEffects;
-    dTypes::PlayerType const* owningPlayerType = find(modData.players, player.id);
+    dTypes::PlayerType const* owningPlayerType = find(modData.players, player.playerType);
     dTypes::CommanderType const* baselineType = find(modData.commanders, owningPlayerType ? owningPlayerType->commanderTypeMod.value_or("") : "");
     dTypes::CommanderType const* commanderType = find(modData.commanders, player.commanderName);
     if(!game.settings.coPowers) {
@@ -143,6 +184,88 @@ calc::getAllPassiveUnitEffects(
       if(!unitMatchesEffect(*unitType, terrain ? terrain->name : "", *effect)) {
         return true;
       }
+      if(!filter(effect)) {
+        return true;
+      }
+
+      return false;
+    });
+    allEffects = append(allEffects, playerEffects);
+  }
+  return allEffects;
+}
+
+
+
+std::vector<dTypes::PassiveGlobalEffect const*>
+calc::getAllPassiveGlobalEffects(
+  game::Game const& game,
+  dTypes::ModData const& modData,
+  std::function<bool(dTypes::PassiveGlobalEffect const*)> filter
+) {
+  std::vector<dTypes::PassiveGlobalEffect const*> allEffects;
+  auto activePlayerId = game.gameState.playerOrder.at(game.gameState.playerTurn);
+  auto activePlayer = find(game.playersById, i64(activePlayerId));
+  if(!activePlayer) {
+    throw std::runtime_error("Unable to find Active Player '" + activePlayerId + "'.");
+  }
+  std::vector<sTypes::PlayerState const*> orderedPlayers;
+  for(auto start = game.gameState.playerTurn; start < game.gameState.playerTurn + static_cast<int64_t>(game.gameState.playerOrder.size()); start++) {
+    auto lastInserted = orderedPlayers.emplace_back(find(game.playersById, i64(game.gameState.playerOrder.at(start % game.gameState.playerOrder.size()))));
+    if(lastInserted == nullptr) {
+      throw std::runtime_error("Unable to find Player.");
+    }
+  }
+  for(auto const& playerPtr : orderedPlayers) {
+    auto const& player = *playerPtr;
+    std::vector<dTypes::PassiveGlobalEffect const*> playerEffects;
+    bool sameAsPlayer = player.id == activePlayerId;
+    bool allyOfPlayer = player.id != activePlayerId 
+      && activePlayer 
+      && activePlayer->team 
+      && activePlayer->team == player.team;
+    bool enemyOfPlayer = player.id != activePlayerId
+      && activePlayer
+      && (!activePlayer->team || activePlayer->team != player.team);
+    dTypes::PlayerType const* playerType = find(modData.players, player.id);
+    dTypes::CommanderType const* baselineType = find(modData.commanders, playerType ? playerType->commanderTypeMod.value_or("") : "");
+    dTypes::CommanderType const* commanderType = find(modData.commanders, player.commanderName);
+    if(!game.settings.coPowers) {
+      commanderType = nullptr;
+    }
+    if(baselineType) {
+      if(baselineType->passiveGlobalEffectsD2d) {
+        playerEffects = append(playerEffects, findAll(modData.passiveGlobalEffects, *baselineType->passiveGlobalEffectsD2d));
+      }
+      if(player.powerActive == "cop" && baselineType->passiveGlobalEffectsCop) {
+        playerEffects = append(playerEffects, findAll(modData.passiveGlobalEffects, *baselineType->passiveGlobalEffectsCop));
+      }
+      if(player.powerActive == "scop" && baselineType->passiveGlobalEffectsScop) {
+        playerEffects = append(playerEffects, findAll(modData.passiveGlobalEffects, *baselineType->passiveGlobalEffectsScop));
+      }
+    }
+    if(commanderType) {
+      if(commanderType->passiveGlobalEffectsD2d) {
+        playerEffects = append(playerEffects, findAll(modData.passiveGlobalEffects, *commanderType->passiveGlobalEffectsD2d));
+      }
+      if(player.powerActive == "cop" && commanderType->passiveGlobalEffectsCop) {
+        playerEffects = append(playerEffects, findAll(modData.passiveGlobalEffects, *commanderType->passiveGlobalEffectsCop));
+      }
+      if(player.powerActive == "scop" && commanderType->passiveGlobalEffectsScop) {
+        playerEffects = append(playerEffects, findAll(modData.passiveGlobalEffects, *commanderType->passiveGlobalEffectsScop));
+      }
+    }
+    std::erase_if(playerEffects, [&](dTypes::PassiveGlobalEffect const* effect) {
+      bool targetsSelf = sameAsPlayer 
+        && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "own" || target == "self";});
+      bool targetsAlly = allyOfPlayer 
+        && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "ally";});
+      bool targetsEnemy = enemyOfPlayer
+        && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "enemy";});
+      if(!(targetsSelf || targetsAlly || targetsEnemy)) {
+        return true;
+      }
+      
       if(!filter(effect)) {
         return true;
       }
