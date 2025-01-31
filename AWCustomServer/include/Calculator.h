@@ -13,6 +13,18 @@ namespace calc {
     game::Game const& game,
     dTypes::ModData const& modData
   );
+  int64_t calculateUnitFirepower(
+    sTypes::UnitState const& unit,
+    game::Game const& game,
+    dTypes::ModData const& modData,
+    bool attacking = true
+  );
+  int64_t calculateUnitDefense(
+    sTypes::UnitState const& unit,
+    game::Game const& game,
+    dTypes::ModData const& modData,
+    bool attackerIndirect = false
+  );
 
   sTypes::PlayerState const* getUnitOwner(
     sTypes::UnitState const& unit, 
@@ -24,7 +36,7 @@ namespace calc {
     dTypes::ModData const& modData
   );
 
-  std::vector<dTypes::PassiveUnitEffect const*>
+  std::vector<std::pair<dTypes::PassiveUnitEffect const*, sTypes::PlayerState const*>>
   getAllPassiveUnitEffects(
     sTypes::UnitState const& unit,
     game::Game const& game,
@@ -32,7 +44,7 @@ namespace calc {
     std::function<bool(dTypes::PassiveUnitEffect const*)> filter = [](auto && effect) {return true;}
   );
 
-  std::vector<dTypes::PassiveTerrainEffect const*>
+  std::vector<std::pair<dTypes::PassiveTerrainEffect const*, sTypes::PlayerState const*>>
   getAllPassiveTerrainEffects(
     sTypes::TerrainState const& terrain,
     game::Game const& game,
@@ -40,7 +52,7 @@ namespace calc {
     std::function<bool(dTypes::PassiveTerrainEffect const*)> filter = [](auto && effect) {return true;}
   );
 
-  std::vector<dTypes::PassiveGlobalEffect const*>
+  std::vector<std::pair<dTypes::PassiveGlobalEffect const*, sTypes::PlayerState const*>>
   getAllPassiveGlobalEffects(
     game::Game const& game,
     dTypes::ModData const& modData,
@@ -57,4 +69,21 @@ namespace calc {
     dTypes::TerrainType const& terrainType,
     dTypes::PassiveTerrainEffect const& effect
   );
+
+  int64_t countTerrainsOwnedByPlayer(
+    int64_t playerId,
+    std::vector<std::string> const& terrainNames,
+    game::Game const& game,
+    dTypes::ModData const& modData
+  );
+
+  int64_t calculateUnitTerrainStars(
+    sTypes::UnitState const& unit,
+    game::Game const& game,
+    dTypes::ModData const& modData
+  );
+
+  constexpr int64_t flatHitPoints(int64_t realHitPoints) {
+    return static_cast<int64_t>(std::ceil(realHitPoints / 10.)) * 10;
+  }
 }

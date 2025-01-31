@@ -10,7 +10,7 @@ namespace db {
     gameState.active = true;
     gameState.day = 1;
     gameState.id = "-1";
-    gameState.playerOrder = { "9999","10000" };
+    gameState.playerOrder = { "9999","10000", "10001", "10002" };
     gameState.playerTurn = 0;
     gameState.variant = "normal";
     return gameState;
@@ -42,6 +42,28 @@ namespace db {
     player2.totalPowerUses = 0;
     player2.playerType = "normal";
     player2.unitFacing = 1;
+    auto& player3 = playerStates.emplace_back();
+    player3.alive = true;
+    player3.armyColor = "rf";
+    player3.commanderName = "kindle";
+    player3.id = "10001";
+    player3.owner = "3";
+    player3.funds = 5000;
+    player3.powerCharge = 0;
+    player3.totalPowerUses = 1;
+    player3.powerActive = "scop";
+    player3.playerType = "normal";
+    auto& player4 = playerStates.emplace_back();
+    player4.alive = true;
+    player4.armyColor = "ge";
+    player4.commanderName = "lash";
+    player4.id = "10002";
+    player4.owner = "4";
+    player4.funds = 5000;
+    player4.powerCharge = 0;
+    player4.totalPowerUses = 1;
+    player4.powerActive = "scop";
+    player4.playerType = "normal";
     return playerStates;
   }
 	std::vector<sTypes::UnitState> get_unitstates(int64_t gameId) {
@@ -65,6 +87,7 @@ namespace db {
       if (unit.y == 3)
       {
         unit.name = "fighter";
+        unit.ammo = 1;
       }
       if (unit.y == 4)
       {
@@ -84,6 +107,35 @@ namespace db {
       unit.hitPoints = 100;
       unit.owner = "10000";
     }
+    for (int i = 0; i < 8; i++)
+    {
+      auto &unit = unitStates.emplace_back();
+      unit.id = std::to_string(i + 17);
+      unit.y = i;
+      unit.x = 8;
+      unit.active = true;
+      unit.ammo = 0;
+      unit.name = "infantry";
+      unit.fuel = 99;
+      unit.hitPoints = 100;
+      unit.owner = "10001";
+    }
+    for (int i = 0; i < 8; i++)
+    {
+      auto &unit = unitStates.emplace_back();
+      unit.id = std::to_string(i + 25);
+      unit.y = 10;
+      unit.x = i;
+      unit.active = true;
+      unit.ammo = 0;
+      unit.name = "infantry";
+      if(i == 4) {
+        unit.name = "battle_copter";
+      }
+      unit.fuel = 99;
+      unit.hitPoints = 100;
+      unit.owner = "10002";
+    }
     return unitStates;
   }
 	std::vector<sTypes::TerrainState> get_terrainstates(int64_t gameId) {
@@ -95,6 +147,7 @@ namespace db {
     int nextId = 0;
     std::minstd_rand engine{static_cast<uint32_t>(nextId + 55)};
     std::uniform_int_distribution<uint32_t> dist{0, 6};
+    std::uniform_int_distribution<uint32_t> forestReplace{0, 99};
     for (int i = 0; i < 50; i++)
     {
       for (int j = 0; j < 50; j++)
@@ -108,12 +161,29 @@ namespace db {
         {
           terrain.name = "mountain";
         }
+
+        if(forestReplace(engine) == 0) {
+          terrain.name = "forest";
+        }
+
+        if(i == 40 && j == 40) {
+          terrain.name = "tower";
+          terrain.owner = "9999";
+        }
+
+        if(i == 45) {
+          terrain.name = "city";
+          terrain.owner = "10001";
+        }
+
         if (terrain.name == "plains")
-        {
+        { 
           terrain.orientation = dist(engine);
         }
+
       }
     }
+
     return terrainStates;
   }
 	sTypes::SettingsState get_settingstate(int64_t gameId) {
@@ -131,7 +201,7 @@ namespace db {
     settingState.coMeterMultiplier = 100;
     settingState.coMeterSize = 9000;
     settingState.coPowers = true;
-    settingState.modId = "3";
+    settingState.modId = "6";
     return settingState;
   }
 }
