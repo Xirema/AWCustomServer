@@ -336,6 +336,62 @@ calc::UnitIntelFlags calc::getUnitIntel(
   );
 }
 
+int64_t calc::calculateUnitCapturePoints(
+  sTypes::UnitState const& unit,
+  game::Game const& game,
+  dTypes::ModData const& modData
+) {
+  dTypes::UnitType const* unitType = find(modData.units, unit.name);
+  if(!unitType) {
+    throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
+  }
+  auto impactingEffects = getAllPassiveUnitEffects(
+    unit,
+    game,
+    modData,
+    [](dTypes::PassiveUnitEffect const* effect) {
+      return 
+        effect->captureRateMod.has_value()
+      ;
+    }
+  );
+  return std::max(0l, ranges::fold_left(
+    impactingEffects | views::elements<0>,
+    100l,
+    [](int64_t captureRate, dTypes::PassiveUnitEffect const* effect) {
+      return captureRate += effect->captureRateMod.value_or(0);
+    }
+  ) * unitType->captureSpeed.value_or(0) * flatHitPoints(unit.hitPoints.value_or(100)) / 10'000);
+}
+
+int64_t calc::calculateUnitCost(
+  sTypes::UnitState const& unit,
+  game::Game const& game,
+  dTypes::ModData const& modData
+) {
+  dTypes::UnitType const* unitType = find(modData.units, unit.name);
+  if(!unitType) {
+    throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
+  }
+  auto impactingEffects = getAllPassiveUnitEffects(
+    unit,
+    game,
+    modData,
+    [](dTypes::PassiveUnitEffect const* effect) {
+      return 
+        effect->unitCostMod.has_value()
+      ;
+    }
+  );
+  return std::max(0l, ranges::fold_left(
+    impactingEffects | views::elements<0>,
+    100l,
+    [](int64_t cost, dTypes::PassiveUnitEffect const* effect) {
+      return cost + effect->unitCostMod.value_or(0);
+    }
+  )) * unitType->cost / 100;
+}
+
 std::string calc::getCurrentVariant(
   game::Game const& game,
   dTypes::ModData const& modData

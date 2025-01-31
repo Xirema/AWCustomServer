@@ -97,6 +97,18 @@ namespace calc {
     bool maxRange = true
   );
 
+  int64_t calculateUnitCapturePoints(
+    sTypes::UnitState const& unit,
+    game::Game const& game,
+    dTypes::ModData const& modData
+  );
+
+  int64_t calculateUnitCost(
+    sTypes::UnitState const& unit,
+    game::Game const& game,
+    dTypes::ModData const& modData
+  );
+
   enum class UnitIntelFlags : uint64_t {
     NONE = 0,
     HIDE_HITPOINTS = 1,

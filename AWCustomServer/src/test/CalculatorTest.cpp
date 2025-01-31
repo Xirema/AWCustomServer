@@ -28,6 +28,8 @@ int main() {
       auto badLuck = calc::calculateUnitLuck(unit, gamePtr->object, modPtr->object, false);
       auto minRange = calc::calculateUnitRange(unit, 0, gamePtr->object, modPtr->object, false);
       auto maxRange = calc::calculateUnitRange(unit, 0, gamePtr->object, modPtr->object);
+      auto capturePoints = calc::calculateUnitCapturePoints(unit, gamePtr->object, modPtr->object);
+      auto cost = calc::calculateUnitCost(unit, gamePtr->object, modPtr->object);
       std::print(
         "{} at {},{} standing on {} owned by {}:\n",
         unit.name,
@@ -46,6 +48,9 @@ int main() {
       );
       std::print(
         "  Defense: {} (from {} stars)\n", defense, terrainStars
+      );
+      std::print(
+        "  Capture Speed: {} (costs {}g)\n", capturePoints, cost
       );
     }
   } catch (std::runtime_error const& e) {
