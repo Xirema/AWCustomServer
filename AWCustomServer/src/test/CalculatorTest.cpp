@@ -24,6 +24,10 @@ int main() {
       auto firepower = calc::calculateUnitFirepower(unit, gamePtr->object, modPtr->object);
       auto defense = calc::calculateUnitDefense(unit, gamePtr->object, modPtr->object);
       auto terrainStars = calc::calculateUnitTerrainStars(unit, gamePtr->object, modPtr->object);
+      auto goodLuck = calc::calculateUnitLuck(unit, gamePtr->object, modPtr->object);
+      auto badLuck = calc::calculateUnitLuck(unit, gamePtr->object, modPtr->object, false);
+      auto minRange = calc::calculateUnitRange(unit, 0, gamePtr->object, modPtr->object, false);
+      auto maxRange = calc::calculateUnitRange(unit, 0, gamePtr->object, modPtr->object);
       std::print(
         "{} at {},{} standing on {} owned by {}:\n",
         unit.name,
@@ -38,7 +42,7 @@ int main() {
         "  Vision Range: {}\n", visionRange
       );
       std::print(
-        "  Firepower: {} (from {} stars)\n", firepower, terrainStars
+        "  Firepower: {} (from {} stars) with {}{}-{} Luck fires in range {}-{}\n", firepower, terrainStars, badLuck > 0 ? "-" : "", badLuck, goodLuck, minRange, maxRange
       );
       std::print(
         "  Defense: {} (from {} stars)\n", defense, terrainStars

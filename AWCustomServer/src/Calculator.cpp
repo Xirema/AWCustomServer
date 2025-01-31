@@ -204,6 +204,138 @@ int64_t calc::calculateUnitDefense(
   return unitDefense;
 }
 
+int64_t calc::calculateUnitLuck(
+  sTypes::UnitState const& unit,
+  game::Game const& game,
+  dTypes::ModData const& modData,
+  bool goodLuck
+) {
+  dTypes::UnitType const* unitType = find(modData.units, unit.name);
+  if(!unitType) {
+    throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
+  }
+  auto impactingEffects = getAllPassiveUnitEffects(unit, game, modData, [](dTypes::PassiveUnitEffect const* effect) {
+    return 
+      effect->goodLuckMod
+      || effect->badLuckMod
+    ;
+  });
+  return std::max(0l, ranges::fold_left(
+    impactingEffects | views::elements<0>,
+    0,
+    [goodLuck](int64_t luck, dTypes::PassiveUnitEffect const* effect) {
+      if(goodLuck) {
+        luck += effect->goodLuckMod.value_or(0);
+      } else {
+        luck += effect->badLuckMod.value_or(0);
+      }
+      return luck;
+    }
+  ));
+}
+
+int64_t calc::calculateUnitRange(
+  sTypes::UnitState const& unit,
+  int64_t weaponIndex,
+  game::Game const& game,
+  dTypes::ModData const& modData,
+  bool maxRange
+) {
+  dTypes::UnitType const* unitType = find(modData.units, unit.name);
+  if(!unitType) {
+    throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
+  }
+  if(!unitType->weapons) {
+    throw std::runtime_error("Unit '" + unitType->name + "' does not have any weapons.");
+  }
+  auto const& weaponName = unitType->weapons->at(weaponIndex);
+  auto weapon = find(modData.weapons, weaponName);
+  if(!weapon) {
+    throw std::runtime_error("Unable to find weapon '" + weaponName + "'");
+  }
+  auto impactingEffects = getAllPassiveUnitEffects(unit, game, modData, [](dTypes::PassiveUnitEffect const* effect) {
+    return 
+      effect->maxRangeMod
+      || effect->minRangeMod
+    ;
+  });
+  return std::max(0l, ranges::fold_left(
+    impactingEffects | views::elements<0>,
+    maxRange ? weapon->maxRange : weapon->minRange.value_or(1),
+    [maxRange](int64_t range, dTypes::PassiveUnitEffect const* effect) {
+      if(maxRange) {
+        range += effect->maxRangeMod.value_or(0);
+      } else {
+        range += effect->minRangeMod.value_or(0);
+      }
+      return range;
+    }
+  ));
+}
+
+calc::UnitIntelFlags calc::getUnitIntel(
+  sTypes::UnitState const& unit,
+  sTypes::PlayerState const* observingPlayer,
+  game::Game const& game,
+  dTypes::ModData const& modData
+) {
+  dTypes::UnitType const* unitType = find(modData.units, unit.name);
+  if(!unitType) {
+    throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
+  }
+  auto impactingEffects = getAllPassiveUnitEffects(
+    unit,
+    game,
+    modData,
+    [](dTypes::PassiveUnitEffect const* effect) {
+      return 
+        effect->hiddenHitPoints
+        || effect->hpPartVisible
+        || effect->luckPointsVisible
+      ;
+    }
+  );
+  return ranges::fold_left(
+    impactingEffects,
+    UnitIntelFlags::NONE,
+    [&](UnitIntelFlags flags, std::pair<dTypes::PassiveUnitEffect const*, sTypes::PlayerState const*> const& pair) {
+      auto [effect, player] = pair;
+      auto alliance = getAlliance(observingPlayer, player);
+      if(effect->hiddenHitPoints) {
+        if(
+          (alliance == Alliance::SELF && ranges::any_of(*effect->hiddenHitPoints, [](std::string const& affects){return affects == "self" || affects == "own";}))
+          || (alliance == Alliance::ALLY && ranges::any_of(*effect->hiddenHitPoints, [](std::string const& affects){return affects == "ally";}))
+          || (alliance == Alliance::NEUTRAL && ranges::any_of(*effect->hiddenHitPoints, [](std::string const& affects){return affects == "neutral";}))
+          || (alliance == Alliance::ENEMY && ranges::any_of(*effect->hiddenHitPoints, [](std::string const& affects){return affects == "enemy";}))
+        ) {
+          flags |= UnitIntelFlags::HIDE_HITPOINTS;
+        }
+      }
+      if(effect->hpPartVisible) {
+        if(
+          (alliance == Alliance::SELF && ranges::any_of(*effect->hpPartVisible, [](std::string const& affects){return affects == "self" || affects == "own";}))
+          || (alliance == Alliance::ALLY && ranges::any_of(*effect->hpPartVisible, [](std::string const& affects){return affects == "ally";}))
+          || (alliance == Alliance::NEUTRAL && ranges::any_of(*effect->hpPartVisible, [](std::string const& affects){return affects == "neutral";}))
+          || (alliance == Alliance::ENEMY && ranges::any_of(*effect->hpPartVisible, [](std::string const& affects){return affects == "enemy";}))
+        ) {
+          flags |= UnitIntelFlags::EXACT_HITPOINTS;
+        }
+      }
+      if(effect->luckPointsVisible) {
+        if(
+          (alliance == Alliance::SELF && ranges::any_of(*effect->luckPointsVisible, [](std::string const& affects){return affects == "self" || affects == "own";}))
+          || (alliance == Alliance::ALLY && ranges::any_of(*effect->luckPointsVisible, [](std::string const& affects){return affects == "ally";}))
+          || (alliance == Alliance::NEUTRAL && ranges::any_of(*effect->luckPointsVisible, [](std::string const& affects){return affects == "neutral";}))
+          || (alliance == Alliance::ENEMY && ranges::any_of(*effect->luckPointsVisible, [](std::string const& affects){return affects == "enemy";}))
+        ) {
+          flags |= UnitIntelFlags::LUCK;
+        }
+      }
+      return flags;
+    }
+  );
+}
+
 std::string calc::getCurrentVariant(
   game::Game const& game,
   dTypes::ModData const& modData
@@ -241,14 +373,7 @@ calc::getAllPassiveUnitEffects(
   }
   std::vector<std::pair<dTypes::PassiveUnitEffect const*, sTypes::PlayerState const*>> allEffects;
   for(auto const& [id, player] : game.playersById) {
-    bool sameAsPlayer = player.id == unit.owner;
-    bool allyOfPlayer = player.id != unit.owner 
-      && owningPlayer 
-      && owningPlayer->team 
-      && owningPlayer->team == player.team;
-    bool enemyOfPlayer = player.id != unit.owner
-      && owningPlayer
-      && (!owningPlayer->team || owningPlayer->team != player.team);
+    auto alliance = getAlliance(&player, owningPlayer);
     std::vector<std::pair<dTypes::PassiveUnitEffect const*, sTypes::PlayerState const*>> playerEffects;
     dTypes::PlayerType const* owningPlayerType = find(modData.players, player.playerType);
     dTypes::CommanderType const* baselineType = find(modData.commanders, owningPlayerType ? owningPlayerType->commanderTypeMod.value_or("") : "");
@@ -287,11 +412,11 @@ calc::getAllPassiveUnitEffects(
     }
     std::erase_if(playerEffects, [&](std::pair<dTypes::PassiveUnitEffect const*, sTypes::PlayerState const*> effectPair) {
       auto [effect, _player] = effectPair;
-      bool targetsSelf = sameAsPlayer 
+      bool targetsSelf = alliance == Alliance::SELF 
         && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "own" || target == "self";});
-      bool targetsAlly = allyOfPlayer 
+      bool targetsAlly = alliance == Alliance::ALLY
         && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "ally";});
-      bool targetsEnemy = enemyOfPlayer
+      bool targetsEnemy = alliance == Alliance::ENEMY
         && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "enemy";});
       if(!(targetsSelf || targetsAlly || targetsEnemy)) {
         return true;
@@ -329,20 +454,10 @@ calc::getAllPassiveTerrainEffects(
     throw std::runtime_error("Unable to find Active Player '" + activePlayerId + "'.");
   }
   auto terrainPlayer = find(game.playersById, i64(terrain.owner.value_or("-1")));
-  bool terrainSameAsPlayer = terrain.owner == activePlayerId;
-  bool terrainAllyOfPlayer = terrainPlayer ? (terrainPlayer->team && terrainPlayer->team == activePlayer->team) : false;
-  bool terrainNeutral = !terrain.owner;
-  bool terrainEnemyOfPlayer = terrainPlayer ? (!terrainPlayer->team || terrainPlayer->team != activePlayer->team) : false;
+  auto terrainAlliance = getAlliance(terrainPlayer, activePlayer);
   for(auto const& [id, player] : game.playersById) {
     std::vector<std::pair<dTypes::PassiveTerrainEffect const*, sTypes::PlayerState const*>> playerEffects;
-    bool powerSameAsPlayer = player.id == activePlayerId;
-    bool powerAllyOfPlayer = player.id != activePlayerId 
-      && activePlayer 
-      && activePlayer->team 
-      && activePlayer->team == player.team;
-    bool powerEnemyOfPlayer = player.id != activePlayerId
-      && activePlayer
-      && (!activePlayer->team || activePlayer->team != player.team);
+    auto powerAlliance = getAlliance(&player, activePlayer);
     dTypes::PlayerType const* playerType = find(modData.players, player.id);
     dTypes::CommanderType const* baselineType = find(modData.commanders, playerType ? playerType->commanderTypeMod.value_or("") : "");
     dTypes::CommanderType const* commanderType = find(modData.commanders, player.commanderName);
@@ -380,23 +495,23 @@ calc::getAllPassiveTerrainEffects(
     }
     std::erase_if(playerEffects, [&](std::pair<dTypes::PassiveTerrainEffect const*, sTypes::PlayerState const*> effectPair) {
       auto [effect, _player] = effectPair;
-      bool targetsSelf = terrainSameAsPlayer 
+      bool targetsSelf = terrainAlliance == Alliance::SELF 
         && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "own" || target == "self";});
-      bool targetsAlly = terrainAllyOfPlayer 
+      bool targetsAlly = terrainAlliance == Alliance::ALLY
         && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "ally";});
-      bool targetsEnemy = terrainEnemyOfPlayer
+      bool targetsEnemy = terrainAlliance == Alliance::ENEMY
         && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "enemy";});
-      bool targetsNeutral = terrainNeutral
+      bool targetsNeutral = terrainAlliance == Alliance::NEUTRAL
         && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "neutral";});
       if(!(targetsSelf || targetsAlly || targetsEnemy || targetsNeutral)) {
         return true;
       }
 
-      bool affectsSelf = powerSameAsPlayer
+      bool affectsSelf = powerAlliance == Alliance::SELF
         && ranges::any_of(effect->affects.value_or(std::vector<std::string>{}), [](std::string const& affect){return affect == "own" || affect == "self";});
-      bool affectsAlly = powerAllyOfPlayer
+      bool affectsAlly = powerAlliance == Alliance::ALLY
         && ranges::any_of(effect->affects.value_or(std::vector<std::string>{}), [](std::string const& affect){return affect == "ally";});
-      bool affectsEnemy = powerEnemyOfPlayer
+      bool affectsEnemy = powerAlliance == Alliance::ENEMY
         && ranges::any_of(effect->affects.value_or(std::vector<std::string>{}), [](std::string const& affect){return affect == "enemy";});
       if(!(affectsSelf || affectsAlly || affectsEnemy)) {
         return true;
@@ -439,14 +554,7 @@ calc::getAllPassiveGlobalEffects(
   for(auto const& playerPtr : orderedPlayers) {
     auto const& player = *playerPtr;
     std::vector<std::pair<dTypes::PassiveGlobalEffect const*, sTypes::PlayerState const*>> playerEffects;
-    bool sameAsPlayer = player.id == activePlayerId;
-    bool allyOfPlayer = player.id != activePlayerId 
-      && activePlayer 
-      && activePlayer->team 
-      && activePlayer->team == player.team;
-    bool enemyOfPlayer = player.id != activePlayerId
-      && activePlayer
-      && (!activePlayer->team || activePlayer->team != player.team);
+    auto alliance = getAlliance(&player, activePlayer);
     dTypes::PlayerType const* playerType = find(modData.players, player.id);
     dTypes::CommanderType const* baselineType = find(modData.commanders, playerType ? playerType->commanderTypeMod.value_or("") : "");
     dTypes::CommanderType const* commanderType = find(modData.commanders, player.commanderName);
@@ -484,11 +592,11 @@ calc::getAllPassiveGlobalEffects(
     }
     std::erase_if(playerEffects, [&](std::pair<dTypes::PassiveGlobalEffect const*, sTypes::PlayerState const*> effectPair) {
       auto [effect, _player] = effectPair;
-      bool targetsSelf = sameAsPlayer 
+      bool targetsSelf = alliance == Alliance::SELF
         && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "own" || target == "self";});
-      bool targetsAlly = allyOfPlayer 
+      bool targetsAlly = alliance == Alliance::ALLY
         && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "ally";});
-      bool targetsEnemy = enemyOfPlayer
+      bool targetsEnemy = alliance == Alliance::ENEMY
         && ranges::any_of(effect->targets.value_or(std::vector<std::string>{}), [](std::string const& target){return target == "enemy";});
       if(!(targetsSelf || targetsAlly || targetsEnemy)) {
         return true;
@@ -625,4 +733,20 @@ int64_t calc::calculateUnitTerrainStars(
     }
   );
   return (terrainStars + flatMod) * multiplier / 100;
+}
+
+calc::Alliance calc::getAlliance(
+  sTypes::PlayerState const* a,
+  sTypes::PlayerState const* b
+) {
+  if(!a || !b) {
+    return Alliance::NEUTRAL;
+  }
+  if(a->id == b->id) {
+    return Alliance::SELF;
+  }
+  if(a->team && a->team == b->team) {
+    return Alliance::ALLY;
+  }
+  return Alliance::ENEMY;
 }

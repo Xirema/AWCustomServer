@@ -10,7 +10,7 @@ namespace db {
     gameState.active = true;
     gameState.day = 1;
     gameState.id = "-1";
-    gameState.playerOrder = { "9999","10000", "10001", "10002" };
+    gameState.playerOrder = { "9999","10000", "10001", "10002", "10003" };
     gameState.playerTurn = 0;
     gameState.variant = "normal";
     return gameState;
@@ -64,6 +64,16 @@ namespace db {
     player4.totalPowerUses = 1;
     player4.powerActive = "scop";
     player4.playerType = "normal";
+    auto& player5 = playerStates.emplace_back();
+    player5.alive = true;
+    player5.armyColor = "bm";
+    player5.commanderName = "grit";
+    player5.id = "10003";
+    player5.owner = "5";
+    player5.funds = 5000;
+    player5.powerCharge = 0;
+    player5.totalPowerUses = 1;
+    player5.playerType = "normal";
     return playerStates;
   }
 	std::vector<sTypes::UnitState> get_unitstates(int64_t gameId) {
@@ -92,6 +102,10 @@ namespace db {
       if (unit.y == 4)
       {
         unit.name = "tank";
+      }
+      if(i == 6) {
+        unit.name = "artillery";
+        unit.ammo = 1;
       }
     }
     for (int i = 0; i < 8; i++)
@@ -132,9 +146,31 @@ namespace db {
       if(i == 4) {
         unit.name = "battle_copter";
       }
+      if(i == 6) {
+        unit.name = "artillery";
+      }
       unit.fuel = 99;
       unit.hitPoints = 100;
       unit.owner = "10002";
+    }
+    for (int i = 0; i < 8; i++)
+    {
+      auto &unit = unitStates.emplace_back();
+      unit.id = std::to_string(i + 33);
+      unit.y = 15;
+      unit.x = i;
+      unit.active = true;
+      unit.ammo = 5;
+      unit.name = "infantry";
+      if(i == 4) {
+        unit.name = "rocket";
+      }
+      if(i == 6) {
+        unit.name = "artillery";
+      }
+      unit.fuel = 99;
+      unit.hitPoints = 100;
+      unit.owner = "10003";
     }
     return unitStates;
   }
@@ -201,7 +237,7 @@ namespace db {
     settingState.coMeterMultiplier = 100;
     settingState.coMeterSize = 9000;
     settingState.coPowers = true;
-    settingState.modId = "6";
+    settingState.modId = "7";
     return settingState;
   }
 }

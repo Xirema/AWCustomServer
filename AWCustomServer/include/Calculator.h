@@ -25,6 +25,12 @@ namespace calc {
     dTypes::ModData const& modData,
     bool attackerIndirect = false
   );
+  int64_t calculateUnitLuck(
+    sTypes::UnitState const& unit,
+    game::Game const& game,
+    dTypes::ModData const& modData,
+    bool goodLuck = true
+  );
 
   sTypes::PlayerState const* getUnitOwner(
     sTypes::UnitState const& unit, 
@@ -81,6 +87,46 @@ namespace calc {
     sTypes::UnitState const& unit,
     game::Game const& game,
     dTypes::ModData const& modData
+  );
+
+  int64_t calculateUnitRange(
+    sTypes::UnitState const& unit,
+    int64_t weaponIndex,
+    game::Game const& game,
+    dTypes::ModData const& modData,
+    bool maxRange = true
+  );
+
+  enum class UnitIntelFlags : uint64_t {
+    NONE = 0,
+    HIDE_HITPOINTS = 1,
+    EXACT_HITPOINTS = 2,
+    LUCK = 4
+  };
+
+  UnitIntelFlags getUnitIntel(
+    sTypes::UnitState const& unit,
+    sTypes::PlayerState const* observingPlayer,
+    game::Game const& game,
+    dTypes::ModData const& modData
+  );
+
+  constexpr UnitIntelFlags& operator|=(UnitIntelFlags & a, UnitIntelFlags b) {
+    a = static_cast<UnitIntelFlags>(static_cast<uint64_t>(a) | static_cast<uint64_t>(b));
+    return a;
+  }
+
+  constexpr bool operator&(UnitIntelFlags a, UnitIntelFlags b) {
+    return static_cast<uint64_t>(a) & static_cast<uint64_t>(b);
+  }
+
+  enum class Alliance {
+    SELF, ALLY, ENEMY, NEUTRAL
+  };
+
+  Alliance getAlliance(
+    sTypes::PlayerState const* a,
+    sTypes::PlayerState const* b
   );
 
   constexpr int64_t flatHitPoints(int64_t realHitPoints) {
