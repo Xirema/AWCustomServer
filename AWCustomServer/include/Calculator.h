@@ -60,6 +60,7 @@ namespace calc {
 
   std::vector<std::pair<dTypes::PassiveGlobalEffect const*, sTypes::PlayerState const*>>
   getAllPassiveGlobalEffects(
+    sTypes::PlayerState const* targetPlayer,
     game::Game const& game,
     dTypes::ModData const& modData,
     std::function<bool(dTypes::PassiveGlobalEffect const*)> filter = [](auto && effect) {return true;}
@@ -105,6 +106,13 @@ namespace calc {
 
   int64_t calculateUnitCost(
     sTypes::UnitState const& unit,
+    game::Game const& game,
+    dTypes::ModData const& modData
+  );
+
+  std::optional<int64_t> calculateMovementCost(
+    sTypes::UnitState const& unit,
+    sTypes::TerrainState const& terrain,
     game::Game const& game,
     dTypes::ModData const& modData
   );

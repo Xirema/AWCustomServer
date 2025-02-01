@@ -30,6 +30,7 @@ int main() {
       auto maxRange = calc::calculateUnitRange(unit, 0, gamePtr->object, modPtr->object);
       auto capturePoints = calc::calculateUnitCapturePoints(unit, gamePtr->object, modPtr->object);
       auto cost = calc::calculateUnitCost(unit, gamePtr->object, modPtr->object);
+      auto movementCost = calc::calculateMovementCost(unit, *terrain, gamePtr->object, modPtr->object);
       std::print(
         "{} at {},{} standing on {} owned by {}:\n",
         unit.name,
@@ -38,7 +39,7 @@ int main() {
         unitOwner->commanderName
       );
       std::print(
-        "  Movement Speed: {}\n", movementRange
+        "  Movement Speed: {} (costed {} to move here)\n", movementRange, movementCost.value_or(-1)
       );
       std::print(
         "  Vision Range: {}\n", visionRange
