@@ -3,19 +3,20 @@
 
 namespace sTypes{
     struct UnitState{
-        std::string id;
-        int64_t x;
-        int64_t y;
-        std::string name;
-        int64_t ammo;
-        int64_t fuel;
-        bool active;
-        std::optional<int64_t> stunned;
-        std::optional<std::vector<std::string>> transporting;
-        std::optional<std::string> owner;
-        std::optional<int64_t> hitPoints;
-        std::optional<bool> stealthed;
-        std::optional<int64_t> currentLuck;
+		std::string id;
+		int64_t x;
+		int64_t y;
+		std::string name;
+		int64_t ammo;
+		int64_t fuel;
+		bool active;
+		std::optional<int64_t> stunned;
+		std::optional<std::vector<std::string>> transporting;
+		std::optional<std::string> owner;
+		std::optional<int64_t> hitPoints;
+		std::optional<bool> stealthed;
+		std::optional<int64_t> currentGoodLuck;
+		std::optional<int64_t> currentBadLuck;
 
         void readFrom(json::object const& obj);
         void writeTo(json::object & obj) const;

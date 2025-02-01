@@ -5713,15 +5713,26 @@ namespace sTypes
 				throw std::runtime_error("Expected 'stealthed' as bool in UnitState, but was of type " + std::string(to_string(ptr->kind())) + ".");
 			}
 		}
-		if (auto ptr = obj.if_contains("currentLuck"))
+		if (auto ptr = obj.if_contains("currentGoodLuck"))
 		{
 			if (auto tPtr = ptr->if_int64())
 			{
-				currentLuck = *tPtr;
+				currentGoodLuck = *tPtr;
 			}
 			else if (!ptr->is_null())
 			{
-				throw std::runtime_error("Expected 'currentLuck' as int64_t in UnitState, but was of type " + std::string(to_string(ptr->kind())) + ".");
+				throw std::runtime_error("Expected 'currentGoodLuck' as int64_t in UnitState, but was of type " + std::string(to_string(ptr->kind())) + ".");
+			}
+		}
+		if (auto ptr = obj.if_contains("currentBadLuck"))
+		{
+			if (auto tPtr = ptr->if_int64())
+			{
+				currentBadLuck = *tPtr;
+			}
+			else if (!ptr->is_null())
+			{
+				throw std::runtime_error("Expected 'currentBadLuck' as int64_t in UnitState, but was of type " + std::string(to_string(ptr->kind())) + ".");
 			}
 		}
 	}
@@ -5760,11 +5771,16 @@ namespace sTypes
 		{
 			obj["stealthed"] = *stealthed;
 		}
-		if (currentLuck)
+		if (currentGoodLuck)
 		{
-			obj["currentLuck"] = *currentLuck;
+			obj["currentGoodLuck"] = *currentGoodLuck;
+		}
+		if (currentBadLuck)
+		{
+			obj["currentBadLuck"] = *currentBadLuck;
 		}
 	}
+
 }
 
 namespace rTypes

@@ -73,7 +73,7 @@ std::string typeFilter(std::string func, std::string_view type, std::string_view
 }
 
 int main() {
-	auto rootDirectory = std::filesystem::path("G:/AWCustom/temp");
+	auto rootDirectory = std::filesystem::path("temp");
 	//auto output = rootDirectory / "out.h";
 	auto templateDirectory = rootDirectory / "templates";
 
@@ -290,14 +290,13 @@ R"Func([B][O][!AR  if([VARNAME]) {
 						"[VARNAME]",
 						variableName
 					);
-
 					if (optional) {
 						ss << "std::optional<";
 					}
 					if (array) {
 						ss << "std::vector<";
 					}
-					if (variableType == "string") {
+					if (variableType == "string" || variableType == "Blob") {
 						ss << "std::string";
 						readFunc = typeFilter(funcFilter(readFunc, optional, array, CompoundType::BASIC), array ? "array" : "string", "string", "string", "std::string", "string");
 						writeFunc = typeFilter(funcFilter(writeFunc, optional, array, CompoundType::BASIC), "", "", "", "json::string", "string");
@@ -307,6 +306,11 @@ R"Func([B][O][!AR  if([VARNAME]) {
 						readFunc = typeFilter(funcFilter(readFunc, optional, array, CompoundType::BASIC), array ? "array" : "int64", "int64", "int64", "int64_t", "integer");
 						writeFunc = typeFilter(funcFilter(writeFunc, optional, array, CompoundType::BASIC), "", "", "", "int64_t", "integer");
 					}
+					// else if(variableType == "uint8_t") {
+					// 	ss << "uint8_t";
+					// 	readFunc = typeFilter(funcFilter(readFunc, optional, array, CompoundType::BASIC), array ? "array" : "int64", "int64", "int64", "int64_t", "integer");
+					// 	writeFunc = typeFilter(funcFilter(writeFunc, optional, array, CompoundType::BASIC), "", "", "", "int64_t", "integer");
+					// }
 					else if (variableType == "boolean") {
 						ss << "bool";
 						readFunc = typeFilter(funcFilter(readFunc, optional, array, CompoundType::BASIC), array ? "array" : "bool", "bool", "bool", "bool", "bool");
@@ -321,7 +325,7 @@ R"Func([B][O][!AR  if([VARNAME]) {
 						ss << "std::map<std::string, std::map<std::string, int64_t>>";
 						readFunc = typeFilter(funcFilter(readFunc, optional, false, CompoundType::MAPMAP), "object", "int64", "int64", "int64_t", "integer");
 						writeFunc = typeFilter(funcFilter(writeFunc, optional, false, CompoundType::MAPMAP), "", "", "", "int64_t", "integer");
-					}
+					} 
 					else {
 						ss << variableType;
 						readFunc = typeFilter(funcFilter(readFunc, optional, array, CompoundType::OBJECT), array ? "array" : "object", "object", "object", variableType, variableType);
