@@ -7,5 +7,6 @@
 namespace ziputil {
   using FileMap = std::map<std::string, std::vector<uint8_t>>;
 
-  FileMap openArchive(std::vector<uint8_t> const& archive);
+  FileMap readArchive(std::vector<uint8_t> const& archive);
+  std::vector<uint8_t> writeArchive(FileMap const& fileMap);
 }

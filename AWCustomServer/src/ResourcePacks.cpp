@@ -211,7 +211,7 @@ namespace
   std::string upload_pack2_impl(net::HTTPHeaders const &headers, std::vector<uint8_t> const &data)
   {
     rTypes::ResourcePack pack;
-    auto fileMap = ziputil::openArchive(data);
+    auto fileMap = ziputil::readArchive(data);
     if (auto it = fileMap.find("text.json"); it != fileMap.end())
     {
       json::array arr = json::parse(fromBlob(it->second)).as_array();
