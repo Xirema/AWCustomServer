@@ -5,6 +5,10 @@
 #include <ZipFunctions.h>
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
+#include <boost/archive/iterators/binary_from_base64.hpp>
+#include <boost/archive/iterators/base64_from_binary.hpp>
+#include <boost/archive/iterators/transform_width.hpp>
+#include<type_traits>
 
 namespace
 {
@@ -26,6 +30,16 @@ namespace
     std::ranges::transform(b, ret.begin(), [](uint8_t c)
                            { return static_cast<char>(c); });
     return ret;
+  }
+  template<typename Range>
+  requires std::is_same_v<std::ranges::range_value_t<Range>, uint8_t>
+  std::string base64(Range && blob) {
+    using namespace boost::archive::iterators;
+    using It = base64_from_binary<transform_width<typename std::decay_t<Range>::const_iterator, 6, 8>>;
+    std::vector<uint8_t> tmp{It(std::begin(blob)), It(std::end(blob))};
+    std::string ret;
+    std::ranges::transform(tmp, std::back_inserter(ret), [](uint8_t v) {return static_cast<char>(v);});
+    return ret.append((3 - blob.size() % 3) % 3, '=');
   }
 
   void submitTextResources(
@@ -411,7 +425,7 @@ namespace
 
     auto statement = connection.prepare_statement(R"SQL(
 	select
-	  *
+	  (ID, PACK_ID, `KEY`, `TYPE`, ARMYCOLOR, SMALLIMAGE, LARGEIMAGE, ORIENTATION, VARIANT, `ORDER`)
 	from
 	  RESOURCE.IMAGE_RESOURCE
 	where
@@ -483,6 +497,51 @@ namespace
     return ret;
   }
 
+  
+  std::vector<rTypes::ImageResource> get_image_resources2(uint64_t packId, mysql::tcp_ssl_connection &connection)
+  {
+    std::vector<rTypes::ImageResource> resources;
+
+    auto statement = connection.prepare_statement(R"SQL(
+      select
+        (ID, PACK_ID, `KEY`, `TYPE`, ARMYCOLOR, SMALLIMAGEBLOB, LARGEIMAGEBLOB, ORIENTATION, VARIANT)
+      from
+        RESOURCE.IMAGE_RESOURCE
+      where
+        PACK_ID = ?
+    )SQL");
+    mysql::results results;
+    connection.execute(
+        statement.bind(
+            packId),
+        results);
+
+    for (auto const &row : results.rows())
+    {
+      auto & newImageResource = resources.emplace_back();
+
+      newImageResource.key = row.at(2).as_string();
+      newImageResource.type = row.at(3).as_string();
+      if (auto val = row.at(4); !val.is_null())
+      {
+        newImageResource.armyColor = val.as_string();
+      }
+      if (auto val = row.at(7); !val.is_null())
+      {
+        newImageResource.orientation = val.as_int64();
+      }
+      mysql::blob smallImageBlob;
+      auto obj5 = row.at(5).as_blob();
+      smallImageBlob.insert(smallImageBlob.end(), obj5.begin(), obj5.end());
+      mysql::blob largeImageBlob;
+      auto obj6 = row.at(6).as_blob();
+      largeImageBlob.insert(largeImageBlob.end(), obj6.begin(), obj6.end());
+      newImageResource.smallImage = base64(smallImageBlob);
+      newImageResource.largeImage = base64(largeImageBlob);
+    }
+    return resources;
+  }
+
   std::string get_pack_impl(net::HTTPHeaders const &headers)
   {
     rTypes::ResourcePack pack;
@@ -503,6 +562,27 @@ namespace
     pack.writeTo(obj);
     return serialize(obj);
   }
+
+  std::string get_pack2_impl(net::HTTPHeaders const &headers)
+  {
+    rTypes::ResourcePack pack;
+    uint64_t packId;
+    if (auto it = headers.httpHeaders.find("packid"); it != headers.httpHeaders.end())
+    {
+      packId = std::stoull(it->second);
+    }
+    else
+    {
+      throw net::RestError("Pack Id not specified", net::RestError::Type::NOT_FOUND);
+    }
+    sqlutil::Session session;
+    pack.packMetadata = get_metadata_impl(headers, session.connection);
+    pack.textResources = get_text_resources(packId, session.connection);
+    pack.imageResources = get_image_resources2(packId, session.connection);
+    json::object obj;
+    pack.writeTo(obj);
+    return serialize(obj);
+  }
 }
 
 std::string rest::resource::get_pack_metadata(net::HTTPHeaders const &headers)
@@ -517,6 +597,11 @@ std::string rest::resource::get_pack_metadata(net::HTTPHeaders const &headers)
 std::string rest::resource::get_resource_pack(net::HTTPHeaders const &headers)
 {
   return get_pack_impl(headers);
+}
+
+std::string rest::resource::get_resource_pack2(net::HTTPHeaders const &headers)
+{
+  return get_pack2_impl(headers);
 }
 
 std::string rest::resource::upload_pack(net::HTTPHeaders const &headers, std::string body)
