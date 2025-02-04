@@ -16,8 +16,20 @@ namespace sTypes{
         std::optional<int64_t> unitLimit;
         std::optional<int64_t> captureLimit;
         std::optional<int64_t> dayLimit;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(SettingsState, (), (
+        id,
+        startingFunds,
+        incomeMultiplier,
+        fogOfWar,
+        variant,
+        coPowers,
+        teams,
+        modId,
+        coMeterSize,
+        coMeterMultiplier,
+        unitLimit,
+        captureLimit,
+        dayLimit
+    ))
 }

@@ -10,7 +10,7 @@ include_directories(${Boost_INCLUDE_DIRS})
 add_library(Core OBJECT 
   src/Archive.cpp src/Properties.cpp src/ResourcePacks.cpp
   src/RestFunctions.cpp src/RestServer.cpp src/SQLUtil.cpp
-  src/StateLookup.cpp src/db/Data.cpp src/jss/Types.cpp src/GameManager.cpp
+  src/StateLookup.cpp src/db/Data.cpp src/GameManager.cpp
   src/db/State.cpp src/Calculator.cpp src/ZipFunctions.cpp
 )
 add_executable(Server $<TARGET_OBJECTS:Core> src/Main.cpp)
@@ -19,3 +19,5 @@ add_executable(CalculatorTest $<TARGET_OBJECTS:Core> src/test/CalculatorTest.cpp
 target_link_libraries(CalculatorTest ${Boost_LIBRARIES} ssl crypto dl zip)
 add_executable(ZipTest $<TARGET_OBJECTS:Core> src/test/ZipTest.cpp)
 target_link_libraries(ZipTest ${Boost_LIBRARIES} ssl crypto dl zip)
+add_executable(JSSTest $<TARGET_OBJECTS:Core> src/test/JSSTest.cpp)
+target_link_libraries(JSSTest ${Boost_LIBRARIES} ssl crypto dl zip)

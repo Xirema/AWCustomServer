@@ -24,59 +24,33 @@ std::string rest::state::get_gamestate(net::HTTPHeaders const &headers)
 {
   auto gameId = get_id(headers);
   sTypes::GameState gameState = db::get_gamestate(gameId);
-  boost::json::object obj;
-  gameState.writeTo(obj);
-  return boost::json::serialize(obj);
+  return boost::json::serialize(json::value_from(gameState));
 }
 
 std::string rest::state::get_playerstates(net::HTTPHeaders const &headers)
 {
   auto gameId = get_id(headers);
-  auto playerStates = db::get_playerstates(gameId);
-
-  boost::json::array arr;
-  for (auto const &player : playerStates)
-  {
-    boost::json::object obj;
-    player.writeTo(obj);
-    arr.push_back(std::move(obj));
-  }
-  return boost::json::serialize(arr);
+  auto ret = db::get_playerstates(gameId);
+  return serialize(json::value_from(ret));
 }
 
 std::string rest::state::get_unitstates(net::HTTPHeaders const &headers)
 {
   auto gameId = get_id(headers);
-  auto unitStates = db::get_unitstates(gameId);
-  boost::json::array arr;
-  for (auto const &unit : unitStates)
-  {
-    boost::json::object obj;
-    unit.writeTo(obj);
-    arr.push_back(std::move(obj));
-  }
-  return boost::json::serialize(arr);
+  auto ret = db::get_unitstates(gameId);
+  return serialize(json::value_from(ret));
 }
 
 std::string rest::state::get_terrainstates(net::HTTPHeaders const &headers)
 {
   auto gameId = get_id(headers);
-  auto terrainStates = db::get_terrainstates(gameId);
-  boost::json::array arr;
-  for (auto const &terrain : terrainStates)
-  {
-    boost::json::object obj;
-    terrain.writeTo(obj);
-    arr.push_back(std::move(obj));
-  }
-  return boost::json::serialize(arr);
+  auto ret = db::get_terrainstates(gameId);
+  return serialize(json::value_from(ret));
 }
 
 std::string rest::state::get_settingstate(net::HTTPHeaders const &headers)
 {
   auto gameId = get_id(headers);
-  auto settingState = db::get_settingstate(gameId);
-  boost::json::object obj;
-  settingState.writeTo(obj);
-  return boost::json::serialize(obj);
+  auto ret = db::get_settingstate(gameId);
+  return serialize(json::value_from(ret));
 }

@@ -22,10 +22,28 @@ namespace dTypes{
         std::optional<bool> ignoresVisionOcclusion;
         std::optional<std::string> stealthType;
         std::optional<bool> stationaryFire;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(UnitType, (), (
+        name,
+        cost,
+        maxFuel,
+        maxAmmo,
+        visionRange,
+        movementRange,
+        movementClass,
+        classifications,
+        fuelPerDay,
+        fuelPerDayStealth,
+        weapons,
+        supplyRepair,
+        transportCapacity,
+        transportList,
+        hitPoints,
+        captureSpeed,
+        ignoresVisionOcclusion,
+        stealthType,
+        stationaryFire
+    ))
     struct WeaponType{
         std::string name;
         int64_t ammoConsumed;
@@ -38,8 +56,18 @@ namespace dTypes{
         std::optional<int64_t> areaOfEffect;
         std::optional<std::vector<std::string>> targetsStealth;
         std::optional<int64_t> flatDamage;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(WeaponType, (), (
+        name,
+        ammoConsumed,
+        baseDamage,
+        maxRange,
+        minRange,
+        selfTarget,
+        affectedByLuck,
+        nonLethal,
+        areaOfEffect,
+        targetsStealth,
+        flatDamage
+    ))
 }

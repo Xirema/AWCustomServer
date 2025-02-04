@@ -12,8 +12,16 @@ namespace sTypes{
         std::optional<std::string> owner;
         std::optional<int64_t> activationCount;
         std::optional<int64_t> hitPoints;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(TerrainState, (), (
+        id,
+        x,
+        y,
+        name,
+        orientation,
+        capturePoints,
+        owner,
+        activationCount,
+        hitPoints
+    ))
 }

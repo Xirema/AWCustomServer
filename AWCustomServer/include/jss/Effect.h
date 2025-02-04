@@ -40,10 +40,46 @@ namespace dTypes{
         std::optional<std::map<std::string, int64_t>> defenseVariantMods;
         std::optional<int64_t> coMeterChargeFromDealtDamage;
         std::optional<int64_t> coMeterChargeFromReceivedDamage;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(PassiveUnitEffect, (), (
+        name,
+        targets,
+        unitTypeRequired,
+        classificationRequired,
+        terrainRequired,
+        firepowerMod,
+        defenseMod,
+        indirectDefenseMod,
+        minRangeMod,
+        maxRangeMod,
+        fuelUseMod,
+        ammoUseMod,
+        goodLuckMod,
+        badLuckMod,
+        movementMod,
+        visionMod,
+        terrainStarsMod,
+        terrainStarsFlatMod,
+        terrainStarsDefense,
+        terrainStarsFirepower,
+        counterfireMod,
+        counterFirst,
+        captureRateMod,
+        unitCostMod,
+        hiddenHitPoints,
+        luckPointsVisible,
+        hpPartVisible,
+        firepowerFromFunds,
+        defenseFromFunds,
+        fundsFromDamage,
+        firepowerFromOwnedTerrain,
+        defenseFromOwnedTerrain,
+        visionVariantMods,
+        firepowerVariantMods,
+        defenseVariantMods,
+        coMeterChargeFromDealtDamage,
+        coMeterChargeFromReceivedDamage
+    ))
     struct ActiveUnitEffect{
         std::string name;
         std::optional<std::vector<std::string>> targets;
@@ -61,10 +97,25 @@ namespace dTypes{
         std::optional<bool> makeActive;
         std::optional<int64_t> stunDuration;
         std::optional<int64_t> coChargeFactor;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(ActiveUnitEffect, (), (
+        name,
+        targets,
+        unitTypeRequired,
+        classificationRequired,
+        terrainRequired,
+        hitPointMod,
+        roundHitPoints,
+        setFuel,
+        setAmmo,
+        addFuel,
+        addAmmo,
+        multiplyFuel,
+        multiplyAmmo,
+        makeActive,
+        stunDuration,
+        coChargeFactor
+    ))
     struct PassiveTerrainEffect{
         std::string name;
         std::optional<std::vector<std::string>> targets;
@@ -78,10 +129,21 @@ namespace dTypes{
         std::optional<bool> occludesVisionMod;
         std::optional<int64_t> visionModBoost;
         std::optional<int64_t> buildCostMod;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(PassiveTerrainEffect, (), (
+        name,
+        targets,
+        affects,
+        terrainRequired,
+        classificationRequired,
+        incomeMod,
+        incomeFlatMod,
+        buildListMod,
+        repairMod,
+        occludesVisionMod,
+        visionModBoost,
+        buildCostMod
+    ))
     struct ActiveTerrainEffect{
         std::string name;
         std::optional<std::vector<std::string>> targets;
@@ -90,10 +152,16 @@ namespace dTypes{
         std::optional<std::string> unitSummonedName;
         std::optional<int64_t> unitSummonedInitialDamage;
         std::optional<bool> unitSummonedActive;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(ActiveTerrainEffect, (), (
+        name,
+        targets,
+        affects,
+        terrainRequired,
+        unitSummonedName,
+        unitSummonedInitialDamage,
+        unitSummonedActive
+    ))
     struct PassiveGlobalEffect{
         std::string name;
         std::optional<std::vector<std::string>> targets;
@@ -102,10 +170,16 @@ namespace dTypes{
         std::optional<std::string> movementClassVariantReplace;
         std::optional<std::string> movementClassVariantOverride;
         std::optional<int64_t> minimumVisionMod;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(PassiveGlobalEffect, (), (
+        name,
+        targets,
+        variantMod,
+        variantHintMod,
+        movementClassVariantReplace,
+        movementClassVariantOverride,
+        minimumVisionMod
+    ))
     struct ActiveGlobalEffect{
         std::string name;
         std::optional<std::vector<std::string>> targets;
@@ -119,8 +193,19 @@ namespace dTypes{
         std::optional<int64_t> missileAreaOfEffect;
         std::optional<int64_t> missileStunDuration;
         std::optional<int64_t> coChargeFactor;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(ActiveGlobalEffect, (), (
+        name,
+        targets,
+        fundMod,
+        fundFlatMod,
+        powerBarMod,
+        powerBarPerFunds,
+        missileCount,
+        missileTargetMethod,
+        missileDamage,
+        missileAreaOfEffect,
+        missileStunDuration,
+        coChargeFactor
+    ))
 }

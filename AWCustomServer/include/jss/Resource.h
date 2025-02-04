@@ -9,10 +9,13 @@ namespace rTypes
         std::string version;
         std::optional<std::string> created;
         std::optional<std::string> packId;
-
-        void readFrom(json::object const &obj);
-        void writeTo(json::object &obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(PackMetadata, (), (
+        name,
+        version,
+        created,
+        packId
+    ))
     struct TextResource
     {
         std::string key;
@@ -21,10 +24,15 @@ namespace rTypes
         std::string longName;
         std::string description;
         std::optional<std::string> language;
-
-        void readFrom(json::object const &obj);
-        void writeTo(json::object &obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(TextResource, (), (
+        key,
+        type,
+        shortName,
+        longName,
+        description,
+        language
+    ))
     struct ImageResource
     {
         std::string key;
@@ -34,17 +42,25 @@ namespace rTypes
         std::optional<std::string> armyColor;
         std::optional<int64_t> orientation;
         std::optional<std::string> variant;
-
-        void readFrom(json::object const &obj);
-        void writeTo(json::object &obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(ImageResource, (), (
+        key,
+        type,
+        smallImage,
+        largeImage,
+        armyColor,
+        orientation,
+        variant
+    ))
     struct ResourcePack
     {
         PackMetadata packMetadata;
         std::vector<TextResource> textResources;
         std::vector<ImageResource> imageResources;
-
-        void readFrom(json::object const &obj);
-        void writeTo(json::object &obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(ResourcePack, (), (
+        packMetadata,
+        textResources,
+        imageResources
+    ))
 }

@@ -24,8 +24,28 @@ namespace dTypes{
         std::optional<std::string> activationChange;
         std::optional<bool> loseIfCaptured;
         std::optional<bool> loseIfAllCaptured;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(TerrainType, (), (
+        name,
+        stars,
+        maxCapturePoints,
+        sameAs,
+        buildList,
+        income,
+        repair,
+        repairList,
+        occludesVision,
+        hitPoints,
+        destroyed,
+        destroyedOrientation,
+        damagedLike,
+        activateList,
+        activateActiveUnitEffects,
+        activateActiveTerrainEffects,
+        activateActiveGlobalEffects,
+        activationMax,
+        activationChange,
+        loseIfCaptured,
+        loseIfAllCaptured
+    ))
 }

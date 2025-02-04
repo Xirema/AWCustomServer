@@ -1,8 +1,10 @@
 #pragma once
-#include<jss/jssinclude.h>
+#include <jss/jssinclude.h>
 
-namespace sTypes{
-    struct UnitState{
+namespace sTypes
+{
+	struct UnitState
+	{
 		std::string id;
 		int64_t x;
 		int64_t y;
@@ -17,8 +19,21 @@ namespace sTypes{
 		std::optional<bool> stealthed;
 		std::optional<int64_t> currentGoodLuck;
 		std::optional<int64_t> currentBadLuck;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
-    };
+	};
+	BOOST_DESCRIBE_STRUCT(UnitState, (), (
+		id,
+		x,
+		y,
+		name,
+		ammo,
+		fuel,
+		active,
+		stunned,
+		transporting,
+		owner,
+		hitPoints,
+		stealthed,
+		currentGoodLuck,
+		currentBadLuck
+	))
 }

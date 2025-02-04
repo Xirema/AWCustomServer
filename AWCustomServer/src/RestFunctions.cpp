@@ -22,9 +22,7 @@ namespace rest
     std::string upload_mod(net::HTTPHeaders const &headers, std::string body)
     {
       // TODO: Authenticate Headers
-      json::object obj = json::parse(body).as_object();
-      dTypes::ModData modData;
-      modData.readFrom(obj);
+      auto modData = json::value_to<dTypes::ModData>(json::parse(body));
       auto ret = db::upload_mod(modData);
       if (ret)
         return "Success";
@@ -42,9 +40,7 @@ namespace rest
       }
 
       auto ret = db::get_mod_metadata(modId, name, version);
-      json::object obj;
-      ret.writeTo(obj);
-      return serialize(obj);
+      return serialize(json::value_from(ret));
     }
     std::string get_mods(net::HTTPHeaders const &headers)
     {
@@ -58,13 +54,7 @@ namespace rest
       }
 
       auto ret = db::get_mods(showExpired, nameFilter, authorFilter);
-      json::array arr;
-      for(auto const& mod : ret) {
-        json::object obj;
-        mod.writeTo(obj);
-        arr.push_back(obj);
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_units(net::HTTPHeaders const &headers)
     {
@@ -72,14 +62,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_units(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_weapons(net::HTTPHeaders const &headers)
     {
@@ -87,14 +70,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_weapons(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_terrains(net::HTTPHeaders const &headers)
     {
@@ -102,14 +78,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_terrains(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_commanders(net::HTTPHeaders const &headers)
     {
@@ -117,14 +86,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_commanders(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_movements(net::HTTPHeaders const &headers)
     {
@@ -132,14 +94,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_movements(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_movement_rules(net::HTTPHeaders const &headers)
     {
@@ -147,14 +102,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_movement_rules(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_players(net::HTTPHeaders const &headers)
     {
@@ -162,14 +110,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_players(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_pues(net::HTTPHeaders const &headers)
     {
@@ -177,14 +118,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_pues(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_aues(net::HTTPHeaders const &headers)
     {
@@ -192,14 +126,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_aues(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_ptes(net::HTTPHeaders const &headers)
     {
@@ -207,14 +134,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_ptes(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_ates(net::HTTPHeaders const &headers)
     {
@@ -222,14 +142,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_ates(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_pges(net::HTTPHeaders const &headers)
     {
@@ -237,14 +150,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_pges(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_ages(net::HTTPHeaders const &headers)
     {
@@ -252,14 +158,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_ages(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
     std::string get_settings(net::HTTPHeaders const &headers)
     {
@@ -267,14 +166,7 @@ namespace rest
       auto modId = readNumber(headers.getHeader("modid").value());
 
       auto ret = db::get_settings(modId, filter);
-      json::array arr;
-      for (auto const &v : ret)
-      {
-        json::object obj;
-        v.writeTo(obj);
-        arr.emplace_back(std::move(obj));
-      }
-      return serialize(arr);
+      return serialize(json::value_from(ret));
     }
   }
 }

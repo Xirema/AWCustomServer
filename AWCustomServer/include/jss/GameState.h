@@ -9,8 +9,7 @@ namespace sTypes{
         std::vector<std::string> playerOrder;
         std::string variant;
         bool active;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+
+    BOOST_DESCRIBE_STRUCT(GameState, (), (id, day, playerTurn, playerOrder, variant, active))
 }

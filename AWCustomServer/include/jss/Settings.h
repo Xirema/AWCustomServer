@@ -15,8 +15,19 @@ namespace dTypes{
         std::optional<int64_t> dayLimit;
         std::optional<int64_t> coMeterSize;
         std::optional<int64_t> coMeterMultiplier;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(Settings, (), (
+        name,
+        startingFunds,
+        incomeMultiplier,
+        fogOfWar,
+        variant,
+        coPowers,
+        teams,
+        unitLimit,
+        captureLimit,
+        dayLimit,
+        coMeterSize,
+        coMeterMultiplier
+    ))
 }

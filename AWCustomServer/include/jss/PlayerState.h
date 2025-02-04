@@ -19,8 +19,23 @@ namespace sTypes{
         std::optional<std::vector<std::string>> bannedUnits;
         std::optional<int64_t> incomeMultiplier;
         std::optional<int64_t> coMeterMultiplier;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(PlayerState, (), (
+        id,
+        owner,
+        commanderName,
+        funds,
+        powerCharge,
+        armyColor,
+        alive,
+        totalPowerUses,
+        unitFacing,
+        playerType,
+        team,
+        powerActive,
+        powerActiveDay,
+        bannedUnits,
+        incomeMultiplier,
+        coMeterMultiplier
+    ))
 }

@@ -8,7 +8,7 @@
 #include <boost/archive/iterators/binary_from_base64.hpp>
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
-#include<type_traits>
+#include <type_traits>
 
 namespace
 {
@@ -31,14 +31,16 @@ namespace
                            { return static_cast<char>(c); });
     return ret;
   }
-  template<typename Range>
-  requires std::is_same_v<std::ranges::range_value_t<Range>, uint8_t>
-  std::string base64(Range && blob) {
+  template <typename Range>
+    requires std::is_same_v<std::ranges::range_value_t<Range>, uint8_t>
+  std::string base64(Range &&blob)
+  {
     using namespace boost::archive::iterators;
     using It = base64_from_binary<transform_width<typename std::decay_t<Range>::const_iterator, 6, 8>>;
     std::vector<uint8_t> tmp{It(std::begin(blob)), It(std::end(blob))};
     std::string ret;
-    std::ranges::transform(tmp, std::back_inserter(ret), [](uint8_t v) {return static_cast<char>(v);});
+    std::ranges::transform(tmp, std::back_inserter(ret), [](uint8_t v)
+                           { return static_cast<char>(v); });
     return ret.append((3 - blob.size() % 3) % 3, '=');
   }
 
@@ -208,8 +210,7 @@ namespace
 
   std::string upload_pack_impl(net::HTTPHeaders const &headers, json::value const &packJson)
   {
-    rTypes::ResourcePack pack;
-    pack.readFrom(packJson.as_object());
+    auto pack = json::value_to<rTypes::ResourcePack>(packJson);
 
     sqlutil::Session session;
     sqlutil::Transaction transaction(session);
@@ -228,12 +229,8 @@ namespace
     auto fileMap = ziputil::readArchive(data);
     if (auto it = fileMap.find("text.json"); it != fileMap.end())
     {
-      json::array arr = json::parse(fromBlob(it->second)).as_array();
-      for (auto const &value : arr)
-      {
-        auto &newText = pack.textResources.emplace_back();
-        newText.readFrom(value.as_object());
-      }
+      auto values = json::value_to<std::vector<rTypes::TextResource>>(json::parse(fromBlob(it->second)));
+      pack.textResources.insert(pack.textResources.end(), values.begin(), values.end());
     }
     for (auto const &[fileName, fileData] : fileMap)
     {
@@ -242,26 +239,30 @@ namespace
         continue;
       }
       std::vector<std::string_view> filenameParts;
-      boost::split(filenameParts, fileName, [](char c){return c == '/';});
-      if(filenameParts.size() < 3) {
+      boost::split(filenameParts, fileName, [](char c)
+                   { return c == '/'; });
+      if (filenameParts.size() < 3)
+      {
         throw net::RestError("Resource Pack Directory Structure is incorrect.", net::RestError::Type::INVALID_DATA);
       }
-      auto& newImage = pack.imageResources.emplace_back();
+      auto &newImage = pack.imageResources.emplace_back();
       newImage.type = std::string{filenameParts.at(0)};
       newImage.key = std::string{filenameParts.at(1)};
-      if(filenameParts.size() >= 4) {
-        if(filenameParts.at(3) != "neutral") {
+      if (filenameParts.size() >= 4)
+      {
+        if (filenameParts.at(3) != "neutral")
+        {
           newImage.armyColor = std::string{filenameParts.at(3)};
         }
       }
-      if(filenameParts.size() >= 5) {
+      if (filenameParts.size() >= 5)
+      {
         newImage.variant = std::string{filenameParts.at(4)};
       }
       auto orientation = filenameParts.back().substr(0, filenameParts.back().find('.'));
       newImage.orientation = std::strtol(orientation.data(), nullptr, 10);
       newImage.smallImage = fromBlob(fileData);
     }
-    // pack.readFrom(packJson.as_object());
 
     sqlutil::Session session;
     sqlutil::Transaction transaction(session);
@@ -366,15 +367,15 @@ namespace
   {
     std::map<std::tuple<std::string, std::string, std::optional<std::string>>, rTypes::TextResource> resources;
     auto statement = connection.prepare_statement(R"SQL(
-	select
-	  *
-	from
-	  RESOURCE.TEXT_RESOURCE
-	where
-	  PACK_ID = ?
-	order by
-	  `ORDER` asc
-      )SQL");
+      select
+        *
+      from
+        RESOURCE.TEXT_RESOURCE
+      where
+        PACK_ID = ?
+      order by
+        `ORDER` asc
+    )SQL");
 
     mysql::results results;
     connection.execute(
@@ -424,15 +425,15 @@ namespace
     std::map<std::tuple<std::string, std::string, std::optional<std::string>, std::optional<int64_t>>, rTypes::ImageResource> resources;
 
     auto statement = connection.prepare_statement(R"SQL(
-	select
-	  (ID, PACK_ID, `KEY`, `TYPE`, ARMYCOLOR, SMALLIMAGE, LARGEIMAGE, ORIENTATION, VARIANT, `ORDER`)
-	from
-	  RESOURCE.IMAGE_RESOURCE
-	where
-	  PACK_ID = ?
-	order by
-	  `ORDER` asc
-      )SQL");
+      select
+        ID, PACK_ID, `KEY`, `TYPE`, ARMYCOLOR, SMALLIMAGE, LARGEIMAGE, ORIENTATION, VARIANT, `ORDER`
+      from
+        RESOURCE.IMAGE_RESOURCE
+      where
+        PACK_ID = ?
+      order by
+        `ORDER` asc
+    )SQL");
     mysql::results results;
     connection.execute(
         statement.bind(
@@ -497,7 +498,6 @@ namespace
     return ret;
   }
 
-  
   std::vector<rTypes::ImageResource> get_image_resources2(uint64_t packId, mysql::tcp_ssl_connection &connection)
   {
     std::vector<rTypes::ImageResource> resources;
@@ -518,7 +518,7 @@ namespace
 
     for (auto const &row : results.rows())
     {
-      auto & newImageResource = resources.emplace_back();
+      auto &newImageResource = resources.emplace_back();
 
       newImageResource.key = row.at(2).as_string();
       newImageResource.type = row.at(3).as_string();
@@ -555,12 +555,18 @@ namespace
       throw net::RestError("Pack Id not specified", net::RestError::Type::NOT_FOUND);
     }
     sqlutil::Session session;
-    pack.packMetadata = get_metadata_impl(headers, session.connection);
-    pack.textResources = get_text_resources(packId, session.connection);
-    pack.imageResources = get_image_resources(packId, session.connection);
-    json::object obj;
-    pack.writeTo(obj);
-    return serialize(obj);
+    std::string stage;
+    try {
+      stage = "metadata";
+      pack.packMetadata = get_metadata_impl(headers, session.connection);
+      stage = "textResources";
+      pack.textResources = get_text_resources(packId, session.connection);
+      stage = "imageResources";
+      pack.imageResources = get_image_resources(packId, session.connection);
+    } catch (mysql::error_with_diagnostics const& e) {
+      throw net::RestError(std::format("Error at stage {}: {}/{}", stage, e.code().value(), e.get_diagnostics().server_message().data()), net::RestError::Type::INTERNAL_ERROR);
+    }
+    return serialize(json::value_from(pack));
   }
 
   std::string get_pack2_impl(net::HTTPHeaders const &headers)
@@ -579,9 +585,7 @@ namespace
     pack.packMetadata = get_metadata_impl(headers, session.connection);
     pack.textResources = get_text_resources(packId, session.connection);
     pack.imageResources = get_image_resources2(packId, session.connection);
-    json::object obj;
-    pack.writeTo(obj);
-    return serialize(obj);
+    return serialize(json::value_from(pack));
   }
 }
 
@@ -589,9 +593,7 @@ std::string rest::resource::get_pack_metadata(net::HTTPHeaders const &headers)
 {
   sqlutil::Session session;
   rTypes::PackMetadata metadata = get_metadata_impl(headers, session.connection);
-  json::object obj;
-  metadata.writeTo(obj);
-  return serialize(obj);
+  return serialize(json::value_from(metadata));
 }
 
 std::string rest::resource::get_resource_pack(net::HTTPHeaders const &headers)
@@ -667,9 +669,7 @@ std::string rest::resource::list_packs(net::HTTPHeaders const &headers)
     newPack.version = row.at(2).as_string();
     mysql::datetime created = row.at(3).as_datetime();
     newPack.created = std::to_string(created.as_time_point().time_since_epoch().count());
-    json::object obj;
-    newPack.writeTo(obj);
-    ret.push_back(std::move(obj));
+    ret.push_back(json::value_from(newPack));
   }
   return serialize(ret);
 }

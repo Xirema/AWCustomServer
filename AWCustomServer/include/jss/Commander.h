@@ -23,18 +23,21 @@ namespace dTypes{
         std::optional<std::vector<std::string>> activeGlobalEffectsScop;
         std::optional<int64_t> coMeterMultiplier;
         std::optional<bool> playable;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+
+    BOOST_DESCRIBE_STRUCT(CommanderType, (), (
+        name, passiveUnitEffectsD2d, passiveTerrainEffectsD2d, passiveGlobalEffectsD2d,
+        copCost, passiveUnitEffectsCop, activeUnitEffectsCop, passiveTerrainEffectsCop, activeTerrainEffectsCop, passiveGlobalEffectsCop, activeGlobalEffectsCop,
+        scopCost, passiveUnitEffectsScop, activeUnitEffectsScop, passiveTerrainEffectsScop, activeTerrainEffectsScop, passiveGlobalEffectsScop, activeGlobalEffectsScop,
+        coMeterMultiplier,
+        playable
+    ))
     struct PlayerType{
         std::string name;
         std::optional<std::string> commanderTypeMod;
         std::optional<std::vector<std::string>> permittedPlayerSlots;
         std::optional<std::vector<std::string>> permittedCommanderTypes;
         std::optional<std::string> teamName;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object & obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(PlayerType, (), (name, commanderTypeMod, permittedPlayerSlots, permittedCommanderTypes, teamName))
 }

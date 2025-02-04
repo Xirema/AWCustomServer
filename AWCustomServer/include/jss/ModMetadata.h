@@ -15,10 +15,14 @@ namespace dTypes {
         std::optional<std::string> modId;
         std::optional<bool> expired;
         std::optional<std::vector<DefaultResourcePack>> defaultResourcePacks;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object& obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(ModMetadata, (), (
+        name,
+        version,
+        modId,
+        expired,
+        defaultResourcePacks
+    ))
     struct ModData {
         std::optional<std::string> protocol;
         ModMetadata modMetadata;
@@ -36,8 +40,23 @@ namespace dTypes {
         std::vector<PassiveGlobalEffect> passiveGlobalEffects;
         std::vector<ActiveGlobalEffect> activeGlobalEffects;
         std::vector<Settings> defaultSettings;
-
-        void readFrom(json::object const& obj);
-        void writeTo(json::object& obj) const;
     };
+    BOOST_DESCRIBE_STRUCT(ModData, (), (
+        protocol,
+        modMetadata,
+        units,
+        weapons,
+        terrains,
+        movements,
+        movementRules,
+        commanders,
+        players,
+        passiveUnitEffects,
+        activeUnitEffects,
+        passiveTerrainEffects,
+        activeTerrainEffects,
+        passiveGlobalEffects,
+        activeGlobalEffects,
+        defaultSettings
+    ))
 }
