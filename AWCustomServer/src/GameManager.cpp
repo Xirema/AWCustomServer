@@ -22,18 +22,15 @@ namespace game {
       auto settingsFuture = std::async([id]{return db::get_settingstate(id);});
       game.gameState = gameStateFuture.get();
       for(auto const& unit : unitsFuture.get()) {
-        auto uid = i64(unit.id);
-        auto & newUnit = game.unitsById[uid] = unit;
+        auto & newUnit = game.unitsById[unit.id] = unit;
         game.unitsByCoordinate[Coord{newUnit.x, newUnit.y}] = &newUnit;
       }
       for(auto const& terrain : terrainsFuture.get()) {
-        auto tid = i64(terrain.id);
-        auto & newTerrain = game.terrainsById[tid] = terrain;
+        auto & newTerrain = game.terrainsById[terrain.id] = terrain;
         game.terrainsByCoordinate[Coord{newTerrain.x, newTerrain.y}] = &newTerrain;
       }
       for(auto const& player : playersFuture.get()) {
-        auto pid = i64(player.id);
-        game.playersById[pid] = player;
+        game.playersById[player.id] = player;
       }
       game.settings = settingsFuture.get();
     } else {

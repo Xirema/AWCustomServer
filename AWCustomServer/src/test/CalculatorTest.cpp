@@ -7,7 +7,7 @@ int main() {
   try {
     game::GameManager& manager = game::GameManager::instance();
     auto gamePtr = manager.getGame(-1);
-    auto modId = i64(gamePtr->object.settings.modId);
+    auto modId = gamePtr->object.settings.modId;
     auto modPtr = manager.getMod(modId);
 
     for(auto const& [id, unit] : gamePtr->object.unitsById) {

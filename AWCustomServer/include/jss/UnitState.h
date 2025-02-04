@@ -5,7 +5,7 @@ namespace sTypes
 {
 	struct UnitState
 	{
-		std::string id;
+		int64_t id;
 		int64_t x;
 		int64_t y;
 		std::string name;
@@ -13,12 +13,12 @@ namespace sTypes
 		int64_t fuel;
 		bool active;
 		std::optional<int64_t> stunned;
-		std::optional<std::vector<std::string>> transporting;
-		std::optional<std::string> owner;
+		std::optional<std::vector<int64_t>> transporting;
+		std::optional<int64_t> owner;
 		std::optional<int64_t> hitPoints;
 		std::optional<bool> stealthed;
-		std::optional<int64_t> currentGoodLuck;
-		std::optional<int64_t> currentBadLuck;
+		std::optional<double> currentGoodLuck;
+		std::optional<double> currentBadLuck;
 	};
 	BOOST_DESCRIBE_STRUCT(UnitState, (), (
 		id,

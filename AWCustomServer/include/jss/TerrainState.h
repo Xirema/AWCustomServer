@@ -3,13 +3,13 @@
 
 namespace sTypes{
     struct TerrainState{
-        std::string id;
+        int64_t id;
         int64_t x;
         int64_t y;
         std::string name;
         std::optional<int64_t> orientation;
         std::optional<int64_t> capturePoints;
-        std::optional<std::string> owner;
+        std::optional<int64_t> owner;
         std::optional<int64_t> activationCount;
         std::optional<int64_t> hitPoints;
     };

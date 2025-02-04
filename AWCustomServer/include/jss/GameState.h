@@ -3,13 +3,15 @@
 
 namespace sTypes{
     struct GameState{
-        std::string id;
+        int64_t id;
         int64_t day;
         int64_t playerTurn;
-        std::vector<std::string> playerOrder;
+        std::vector<int64_t> playerOrder;
         std::string variant;
+        std::optional<std::string> variantStart;
         bool active;
+        int64_t hash;
     };
 
-    BOOST_DESCRIBE_STRUCT(GameState, (), (id, day, playerTurn, playerOrder, variant, active))
+    BOOST_DESCRIBE_STRUCT(GameState, (), (id, day, playerTurn, playerOrder, variant, variantStart, active, hash))
 }

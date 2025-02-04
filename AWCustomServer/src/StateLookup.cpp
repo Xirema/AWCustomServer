@@ -4,10 +4,7 @@
 #include <jss/PlayerState.h>
 #include <jss/SettingsState.h>
 #include <jss/TerrainState.h>
-#include <random>
-#include <boost/mysql.hpp>
 
-namespace mysql = boost::mysql;
 namespace
 {
   int64_t get_id(net::HTTPHeaders const &headers)

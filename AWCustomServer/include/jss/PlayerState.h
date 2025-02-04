@@ -3,8 +3,8 @@
 
 namespace sTypes{
     struct PlayerState{
-        std::string id;
-        std::string owner;
+        int64_t id;
+        int64_t user;
         std::string commanderName;
         int64_t funds;
         int64_t powerCharge;
@@ -22,7 +22,7 @@ namespace sTypes{
     };
     BOOST_DESCRIBE_STRUCT(PlayerState, (), (
         id,
-        owner,
+        user,
         commanderName,
         funds,
         powerCharge,

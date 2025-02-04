@@ -140,7 +140,7 @@ int64_t calc::calculateUnitFirepower(
 
       if(effect->firepowerFromOwnedTerrain) {
         for(auto const& [terrainName, mod] : *effect->firepowerFromOwnedTerrain) {
-          sum += mod * countTerrainsOwnedByPlayer(i64(player->id), {terrainName}, game, modData);
+          sum += mod * countTerrainsOwnedByPlayer(player->id, {terrainName}, game, modData);
         }
       }
       if(effect->firepowerFromFunds) {
@@ -194,7 +194,7 @@ int64_t calc::calculateUnitDefense(
 
       if(effect->defenseFromOwnedTerrain) {
         for(auto const& [terrainName, mod] : *effect->defenseFromOwnedTerrain) {
-          sum += mod * countTerrainsOwnedByPlayer(i64(player->id), {terrainName}, game, modData);
+          sum += mod * countTerrainsOwnedByPlayer(player->id, {terrainName}, game, modData);
         }
       }
       if(effect->defenseFromFunds) {
@@ -408,7 +408,7 @@ std::optional<int64_t> calc::calculateMovementCost(
   if(!movementClass) {
     throw std::runtime_error("Unable to find movement class '" + unitType->movementClass + "'");
   }
-  PlayerState const* owningPlayer = find(game.playersById, i64(unit.owner.value_or("-1")));
+  PlayerState const* owningPlayer = find(game.playersById, unit.owner.value_or(-1));
   auto impactingUnitEffects = getAllPassiveGlobalEffects(owningPlayer, game, modData, [](PassiveGlobalEffect const* effect) {
     return 
       effect->movementClassVariantOverride 
@@ -454,7 +454,7 @@ PlayerState const* calc::getUnitOwner(
   UnitState const& unit, 
   game::Game const& game
 ) {
-  return find(game.playersById, i64(unit.owner.value_or("-1")));
+  return find(game.playersById, unit.owner.value_or(-1));
 }
 
 std::vector<std::pair<PassiveUnitEffect const*, PlayerState const*>>
@@ -468,7 +468,7 @@ calc::getAllPassiveUnitEffects(
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
-  PlayerState const* owningPlayer = find(game.playersById, i64(unit.owner.value_or("-1")));
+  PlayerState const* owningPlayer = find(game.playersById, unit.owner.value_or(-1));
   TerrainState const* terrain = nullptr;
   if(auto it = game.terrainsByCoordinate.find(Coord{unit}); it != game.terrainsByCoordinate.end()) {
     terrain = it->second;
@@ -551,16 +551,16 @@ calc::getAllPassiveTerrainEffects(
     throw std::runtime_error("Unable to find Terrain Type '" + terrain.name + "'");
   }
   auto activePlayerId = game.gameState.playerOrder.at(game.gameState.playerTurn);
-  auto activePlayer = find(game.playersById, i64(activePlayerId));
+  auto activePlayer = find(game.playersById, activePlayerId);
   if(!activePlayer) {
-    throw std::runtime_error("Unable to find Active Player '" + activePlayerId + "'.");
+    throw std::runtime_error(std::format("Unable to find Active Player '{}'.", activePlayerId));
   }
-  auto terrainPlayer = find(game.playersById, i64(terrain.owner.value_or("-1")));
+  auto terrainPlayer = find(game.playersById, terrain.owner.value_or(-1));
   auto terrainAlliance = getAlliance(terrainPlayer, activePlayer);
   for(auto const& [id, player] : game.playersById) {
     std::vector<std::pair<PassiveTerrainEffect const*, PlayerState const*>> playerEffects;
     auto powerAlliance = getAlliance(&player, activePlayer);
-    PlayerType const* playerType = find(modData.players, player.id);
+    PlayerType const* playerType = find(modData.players, player.playerType);
     CommanderType const* baselineType = find(modData.commanders, playerType ? playerType->commanderTypeMod.value_or("") : "");
     CommanderType const* commanderType = find(modData.commanders, player.commanderName);
     if(!game.settings.coPowers) {
@@ -643,16 +643,16 @@ calc::getAllPassiveGlobalEffects(
 ) {
   std::vector<std::pair<PassiveGlobalEffect const*, PlayerState const*>> allEffects;
   auto activePlayerId = game.gameState.playerOrder.at(game.gameState.playerTurn);
-  auto activePlayer = find(game.playersById, i64(activePlayerId));
+  auto activePlayer = find(game.playersById, activePlayerId);
   if(!activePlayer) {
-    throw std::runtime_error("Unable to find Active Player '" + activePlayerId + "'.");
+    throw std::runtime_error(std::format("Unable to find Active Player '{}'.", activePlayerId));
   }
   if(targetPlayer) {
     activePlayer = targetPlayer;
   }
   std::vector<PlayerState const*> orderedPlayers;
   for(auto start = game.gameState.playerTurn; start < game.gameState.playerTurn + static_cast<int64_t>(game.gameState.playerOrder.size()); start++) {
-    auto lastInserted = orderedPlayers.emplace_back(find(game.playersById, i64(game.gameState.playerOrder.at(start % game.gameState.playerOrder.size()))));
+    auto lastInserted = orderedPlayers.emplace_back(find(game.playersById, game.gameState.playerOrder.at(start % game.gameState.playerOrder.size())));
     if(lastInserted == nullptr) {
       throw std::runtime_error("Unable to find Player.");
     }
@@ -661,7 +661,7 @@ calc::getAllPassiveGlobalEffects(
     auto const& player = *playerPtr;
     std::vector<std::pair<PassiveGlobalEffect const*, PlayerState const*>> playerEffects;
     auto alliance = getAlliance(&player, activePlayer);
-    PlayerType const* playerType = find(modData.players, player.id);
+    PlayerType const* playerType = find(modData.players, player.playerType);
     CommanderType const* baselineType = find(modData.commanders, playerType ? playerType->commanderTypeMod.value_or("") : "");
     CommanderType const* commanderType = find(modData.commanders, player.commanderName);
     if(!game.settings.coPowers) {
@@ -786,7 +786,7 @@ int64_t calc::countTerrainsOwnedByPlayer(
     [&terrainNames, playerId](int64_t sum, TerrainState const& terrain) {
       if(
         ranges::any_of(terrainNames, [&terrain, playerId](std::string const& terrainReq) {return terrain.name == terrainReq;})
-        && terrain.owner == str(playerId)
+        && terrain.owner == playerId
       ) {
         return sum + 1;
       }
