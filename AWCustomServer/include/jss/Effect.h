@@ -23,6 +23,8 @@ namespace dTypes{
         std::optional<int64_t> terrainStarsFlatMod;
         std::optional<int64_t> terrainStarsDefense;
         std::optional<int64_t> terrainStarsFirepower;
+        std::optional<int64_t> terrainStarsFlatDefense;
+        std::optional<int64_t> terrainStarsFlatFirepower;
         std::optional<int64_t> counterfireMod;
         std::optional<bool> counterFirst;
         std::optional<int64_t> captureRateMod;
@@ -41,6 +43,7 @@ namespace dTypes{
         std::optional<int64_t> coMeterChargeFromDealtDamage;
         std::optional<int64_t> coMeterChargeFromReceivedDamage;
     };
+    //Remember: BOOST_DESCRIBE_STRUCT only works for up to 53 members!
     BOOST_DESCRIBE_STRUCT(PassiveUnitEffect, (), (
         name,
         targets,
@@ -62,6 +65,8 @@ namespace dTypes{
         terrainStarsFlatMod,
         terrainStarsDefense,
         terrainStarsFirepower,
+        terrainStarsFlatDefense,
+        terrainStarsFlatFirepower,
         counterfireMod,
         counterFirst,
         captureRateMod,

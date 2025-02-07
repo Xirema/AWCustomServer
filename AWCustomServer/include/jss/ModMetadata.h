@@ -40,6 +40,7 @@ namespace dTypes {
         std::vector<PassiveGlobalEffect> passiveGlobalEffects;
         std::vector<ActiveGlobalEffect> activeGlobalEffects;
         std::vector<Settings> defaultSettings;
+        Config config;
     };
     BOOST_DESCRIBE_STRUCT(ModData, (), (
         protocol,
@@ -57,6 +58,7 @@ namespace dTypes {
         activeTerrainEffects,
         passiveGlobalEffects,
         activeGlobalEffects,
-        defaultSettings
+        defaultSettings,
+        config
     ))
 }

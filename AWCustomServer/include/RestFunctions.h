@@ -34,7 +34,9 @@ namespace rest {
 		std::string get_ages(net::HTTPHeaders const& headers);
 		std::string get_settings(net::HTTPHeaders const& headers);
 		std::string get_mod_metadata(net::HTTPHeaders const& headers);
+		std::string get_mod_config(net::HTTPHeaders const& headers);
 		std::string get_mods(net::HTTPHeaders const& headers);
+		std::string get_mod(net::HTTPHeaders const& headers);
 	}
 
 	namespace state {
@@ -72,6 +74,8 @@ namespace db {
 	std::vector<dTypes::ActiveGlobalEffect> get_ages(int64_t modId, std::optional<std::string_view> const& filter);
 	std::vector<dTypes::Settings> get_settings(int64_t modId, std::optional<std::string_view> const& filter);
 	dTypes::ModMetadata get_mod_metadata(std::optional<int64_t> const& modId, std::optional<std::string_view> const& name, std::optional<std::string_view> const& version);
+	dTypes::ModData get_mod(int64_t modId);
+	dTypes::Config get_mod_config(int64_t modId);
 	std::vector<dTypes::ModMetadata> get_mods(std::optional<bool> const& showExpired, std::optional<std::string_view> const& name, std::optional<std::string_view> const& author);
 	sTypes::GameState get_gamestate(int64_t gameId);
 	std::vector<sTypes::PlayerState> get_playerstates(int64_t gameId);

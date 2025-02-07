@@ -30,4 +30,16 @@ namespace dTypes{
         coMeterSize,
         coMeterMultiplier
     ))
+    struct Config {
+        std::optional<int64_t> minTerrainStars;
+        std::optional<bool> unlimitedUnload;
+        std::optional<bool> terrainDefenseScalesWithHitpoints;
+        std::optional<bool> terrainFirepowerScalesWithHitpoints;
+    };
+    BOOST_DESCRIBE_STRUCT(Config, (), (
+        minTerrainStars,
+        unlimitedUnload,
+        terrainDefenseScalesWithHitpoints,
+        terrainFirepowerScalesWithHitpoints
+    ))
 }

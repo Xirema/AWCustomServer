@@ -4,6 +4,8 @@
 #include <jss/PlayerState.h>
 #include <jss/SettingsState.h>
 #include <jss/TerrainState.h>
+#include<GameManager.h>
+#include<ranges>
 
 namespace
 {
@@ -20,34 +22,44 @@ namespace
 std::string rest::state::get_gamestate(net::HTTPHeaders const &headers)
 {
   auto gameId = get_id(headers);
-  sTypes::GameState gameState = db::get_gamestate(gameId);
-  return boost::json::serialize(json::value_from(gameState));
+  game::GameManager & manager = game::GameManager::instance();
+  auto gamePtr = manager.getGame(gameId);
+  std::unique_lock lock{gamePtr->gameMutex};
+  return boost::json::serialize(json::value_from(gamePtr->object.gameState));
 }
 
 std::string rest::state::get_playerstates(net::HTTPHeaders const &headers)
 {
   auto gameId = get_id(headers);
-  auto ret = db::get_playerstates(gameId);
-  return serialize(json::value_from(ret));
+  game::GameManager & manager = game::GameManager::instance();
+  auto gamePtr = manager.getGame(gameId);
+  std::unique_lock lock{gamePtr->gameMutex};
+  return serialize(json::value_from(gamePtr->object.playersById | std::views::elements<1>));
 }
 
 std::string rest::state::get_unitstates(net::HTTPHeaders const &headers)
 {
   auto gameId = get_id(headers);
-  auto ret = db::get_unitstates(gameId);
-  return serialize(json::value_from(ret));
+  game::GameManager & manager = game::GameManager::instance();
+  auto gamePtr = manager.getGame(gameId);
+  std::unique_lock lock{gamePtr->gameMutex};
+  return serialize(json::value_from(gamePtr->object.unitsById | std::views::elements<1>));
 }
 
 std::string rest::state::get_terrainstates(net::HTTPHeaders const &headers)
 {
   auto gameId = get_id(headers);
-  auto ret = db::get_terrainstates(gameId);
-  return serialize(json::value_from(ret));
+  game::GameManager & manager = game::GameManager::instance();
+  auto gamePtr = manager.getGame(gameId);
+  std::unique_lock lock{gamePtr->gameMutex};
+  return serialize(json::value_from(gamePtr->object.terrainsById | std::views::elements<1>));
 }
 
 std::string rest::state::get_settingstate(net::HTTPHeaders const &headers)
 {
   auto gameId = get_id(headers);
-  auto ret = db::get_settingstate(gameId);
-  return serialize(json::value_from(ret));
+  game::GameManager & manager = game::GameManager::instance();
+  auto gamePtr = manager.getGame(gameId);
+  std::unique_lock lock{gamePtr->gameMutex};
+  return serialize(json::value_from(gamePtr->object.settings));
 }

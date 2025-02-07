@@ -35,6 +35,8 @@ int main() {
       {"/data/getSettings", rest::data::get_settings},
       {"/data/getModData", rest::data::get_mod_metadata},
       {"/data/getMods", rest::data::get_mods},
+      {"/data/getConfig", rest::data::get_mod_config},
+      {"/data/getMod", rest::data::get_mod},
 
       {"/state/getGameState", rest::state::get_gamestate},
       {"/state/getUnitStates", rest::state::get_unitstates},

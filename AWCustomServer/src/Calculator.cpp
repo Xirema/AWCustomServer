@@ -130,22 +130,22 @@ int64_t calc::calculateUnitFirepower(
           sum += it->second;
         }
       }
-      if(!attacking && effect->counterfireMod) {
+      if(!attacking) {
         sum += effect->counterfireMod.value_or(0);
       }
 
-      if(effect->terrainStarsFirepower) {
-        sum += effect->terrainStarsFirepower.value_or(0) * calculateUnitTerrainStars(unit, game, modData);
+      auto terrainStarsFirepower = effect->terrainStarsFirepower.value_or(0) * calculateUnitTerrainStars(unit, game, modData) + effect->terrainStarsFlatFirepower.value_or(0);
+      if(modData.config.terrainFirepowerScalesWithHitpoints.value_or(false)) {
+        terrainStarsFirepower = terrainStarsFirepower * flatHitPoints(unit.hitPoints.value_or(100)) / 100;
       }
+      sum += terrainStarsFirepower;
 
       if(effect->firepowerFromOwnedTerrain) {
         for(auto const& [terrainName, mod] : *effect->firepowerFromOwnedTerrain) {
           sum += mod * countTerrainsOwnedByPlayer(player->id, {terrainName}, game, modData);
         }
       }
-      if(effect->firepowerFromFunds) {
-        sum += effect->firepowerFromFunds.value_or(0) * player->funds / 1'000;
-      }
+      sum += effect->firepowerFromFunds.value_or(0) * player->funds / 1'000;
       return sum;
     }
   );
@@ -184,22 +184,22 @@ int64_t calc::calculateUnitDefense(
           sum += it->second;
         }
       }
-      if(attackerIndirect && effect->indirectDefenseMod) {
+      if(attackerIndirect) {
         sum += effect->indirectDefenseMod.value_or(0);
       }
 
-      if(effect->terrainStarsDefense) {
-        sum += effect->terrainStarsDefense.value_or(0) * calculateUnitTerrainStars(unit, game, modData) * flatHitPoints(unit.hitPoints.value_or(100)) / 100;
+      auto terrainStarsDefense = effect->terrainStarsDefense.value_or(0) * calculateUnitTerrainStars(unit, game, modData) + effect->terrainStarsFlatDefense.value_or(0);
+      if(modData.config.terrainDefenseScalesWithHitpoints.value_or(false)) {
+        terrainStarsDefense = terrainStarsDefense * flatHitPoints(unit.hitPoints.value_or(100)) / 100;
       }
+      sum += terrainStarsDefense;
 
       if(effect->defenseFromOwnedTerrain) {
         for(auto const& [terrainName, mod] : *effect->defenseFromOwnedTerrain) {
           sum += mod * countTerrainsOwnedByPlayer(player->id, {terrainName}, game, modData);
         }
       }
-      if(effect->defenseFromFunds) {
-        sum += effect->defenseFromFunds.value_or(0) * player->funds / 1'000;
-      }
+      sum += effect->defenseFromFunds.value_or(0) * player->funds / 1'000;
       return sum;
     }
   );

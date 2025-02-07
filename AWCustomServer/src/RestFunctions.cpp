@@ -1,5 +1,6 @@
 #include <RestFunctions.h>
 #include <charconv>
+#include<GameManager.h>
 
 namespace rest
 {
@@ -167,6 +168,17 @@ namespace rest
 
       auto ret = db::get_settings(modId, filter);
       return serialize(json::value_from(ret));
+    }
+		std::string get_mod_config(net::HTTPHeaders const& headers) {
+      auto modId = readNumber(headers.getHeader("modid").value());
+      auto ret = db::get_mod_config(modId);
+      return serialize(json::value_from(ret));
+    }
+		std::string get_mod(net::HTTPHeaders const& headers) {
+      auto modId = readNumber(headers.getHeader("modid").value());
+      game::GameManager & manager = game::GameManager::instance();
+      auto mod = manager.getMod(modId);
+      return serialize(json::value_from(mod->object));
     }
   }
 }
