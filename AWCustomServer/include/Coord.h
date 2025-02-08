@@ -3,6 +3,7 @@
 #include<utility>
 #include<compare>
 #include<boost/container_hash/hash.hpp>
+#include<boost/describe.hpp>
 
 namespace coord {
   template<typename Type>
@@ -17,6 +18,7 @@ namespace coord {
     int64_t x, y;
     constexpr auto operator<=>(Coord const& o) const = default;
   };
+  BOOST_DESCRIBE_STRUCT(Coord, (), (x, y))
 }
 template<>
 struct std::hash<coord::Coord> {

@@ -19,18 +19,19 @@ int main() {
       if(!unitOwner) {
         throw std::runtime_error("Unable to find owner for unit at " + std::format("{},{}", unit.x, unit.y));
       }
-      auto movementRange = calc::calculateUnitMovementRange(unit, gamePtr->object, modPtr->object);
-      auto visionRange = calc::calculateUnitVisionRange(unit, gamePtr->object, modPtr->object);
-      auto firepower = calc::calculateUnitFirepower(unit, gamePtr->object, modPtr->object);
-      auto defense = calc::calculateUnitDefense(unit, gamePtr->object, modPtr->object);
-      auto terrainStars = calc::calculateUnitTerrainStars(unit, gamePtr->object, modPtr->object);
-      auto goodLuck = calc::calculateUnitLuck(unit, gamePtr->object, modPtr->object);
-      auto badLuck = calc::calculateUnitLuck(unit, gamePtr->object, modPtr->object, false);
-      auto minRange = calc::calculateUnitRange(unit, 0, gamePtr->object, modPtr->object, false);
-      auto maxRange = calc::calculateUnitRange(unit, 0, gamePtr->object, modPtr->object);
-      auto capturePoints = calc::calculateUnitCapturePoints(unit, gamePtr->object, modPtr->object);
-      auto cost = calc::calculateUnitCost(unit, gamePtr->object, modPtr->object);
-      auto movementCost = calc::calculateMovementCost(unit, *terrain, gamePtr->object, modPtr->object);
+      calc::CalculatorState state{gamePtr->object, modPtr->object};
+      auto movementRange = calc::calculateUnitMovementRange(unit, state);
+      auto visionRange = calc::calculateUnitVisionRange(unit, state);
+      auto firepower = calc::calculateUnitFirepower(unit, state);
+      auto defense = calc::calculateUnitDefense(unit, state);
+      auto terrainStars = calc::calculateUnitTerrainStars(unit, state);
+      auto goodLuck = calc::calculateUnitLuck(unit, state);
+      auto badLuck = calc::calculateUnitLuck(unit, state, false);
+      auto minRange = calc::calculateUnitRange(unit, 0, state, false);
+      auto maxRange = calc::calculateUnitRange(unit, 0, state);
+      auto capturePoints = calc::calculateUnitCapturePoints(unit, state);
+      auto cost = calc::calculateUnitCost(unit, state);
+      auto movementCost = calc::calculateMovementCost(unit, *terrain, state);
       std::print(
         "{} at {},{} standing on {} owned by {}:\n",
         unit.name,

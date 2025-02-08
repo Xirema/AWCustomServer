@@ -56,14 +56,14 @@ namespace {
 
 int64_t calc::calculateUnitMovementRange(
   UnitState const& unit,
-  game::Game const& game,
-  ModData const& modData
+  CalculatorState state
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
-  auto impactingEffects = getAllPassiveUnitEffects(unit, game, modData, [](auto && effect) {return effect->movementMod.has_value();});
+  auto impactingEffects = getAllPassiveUnitEffects(unit, state, [](auto && effect) {return effect->movementMod.has_value();});
   auto movementRange = unitType->movementRange;
   movementRange += ranges::fold_left(impactingEffects | views::elements<0>, 0ll, [](int64_t sum, PassiveUnitEffect const* effect) {
     return sum + effect->movementMod.value_or(0);
@@ -74,18 +74,18 @@ int64_t calc::calculateUnitMovementRange(
 
 int64_t calc::calculateUnitVisionRange(
   UnitState const& unit,
-  game::Game const& game,
-  ModData const& modData
+  CalculatorState state
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
-  auto impactingEffects = getAllPassiveUnitEffects(unit, game, modData, [](PassiveUnitEffect const* effect) {
+  auto impactingEffects = getAllPassiveUnitEffects(unit, state, [](PassiveUnitEffect const* effect) {
     return effect->visionMod.has_value() || effect->visionVariantMods.has_value();
   });
   auto visionRange = unitType->visionRange;
-  auto currentVariant = getCurrentVariant(game, modData);
+  auto currentVariant = getCurrentVariant(state);
   visionRange += ranges::fold_left(impactingEffects | views::elements<0>, 0ll, [&](int64_t sum, PassiveUnitEffect const* effect) {
     if(effect->visionVariantMods) {
       if(auto it = effect->visionVariantMods->find(currentVariant); it != effect->visionVariantMods->end()) {
@@ -100,15 +100,15 @@ int64_t calc::calculateUnitVisionRange(
 
 int64_t calc::calculateUnitFirepower(
   UnitState const& unit,
-  game::Game const& game,
-  ModData const& modData,
+  CalculatorState state,
   bool attacking
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
-  auto impactingEffects = getAllPassiveUnitEffects(unit, game, modData, [](PassiveUnitEffect const* effect) {
+  auto impactingEffects = getAllPassiveUnitEffects(unit, state, [](PassiveUnitEffect const* effect) {
     return 
       effect->firepowerFromFunds 
       || effect->firepowerFromOwnedTerrain
@@ -118,7 +118,7 @@ int64_t calc::calculateUnitFirepower(
       || effect->counterfireMod
     ;
   });
-  auto currentVariant = getCurrentVariant(game, modData);
+  auto currentVariant = getCurrentVariant(state);
   int64_t unitFirepower = ranges::fold_left(
     impactingEffects,
     100,
@@ -134,7 +134,7 @@ int64_t calc::calculateUnitFirepower(
         sum += effect->counterfireMod.value_or(0);
       }
 
-      auto terrainStarsFirepower = effect->terrainStarsFirepower.value_or(0) * calculateUnitTerrainStars(unit, game, modData) + effect->terrainStarsFlatFirepower.value_or(0);
+      auto terrainStarsFirepower = effect->terrainStarsFirepower.value_or(0) * calculateUnitTerrainStars(unit, state) + effect->terrainStarsFlatFirepower.value_or(0);
       if(modData.config.terrainFirepowerScalesWithHitpoints.value_or(false)) {
         terrainStarsFirepower = terrainStarsFirepower * flatHitPoints(unit.hitPoints.value_or(100)) / 100;
       }
@@ -142,7 +142,7 @@ int64_t calc::calculateUnitFirepower(
 
       if(effect->firepowerFromOwnedTerrain) {
         for(auto const& [terrainName, mod] : *effect->firepowerFromOwnedTerrain) {
-          sum += mod * countTerrainsOwnedByPlayer(player->id, {terrainName}, game, modData);
+          sum += mod * countTerrainsOwnedByPlayer(player->id, {terrainName}, state);
         }
       }
       sum += effect->firepowerFromFunds.value_or(0) * player->funds / 1'000;
@@ -154,15 +154,15 @@ int64_t calc::calculateUnitFirepower(
 
 int64_t calc::calculateUnitDefense(
   UnitState const& unit,
-  game::Game const& game,
-  ModData const& modData,
+  CalculatorState state,
   bool attackerIndirect
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
-  auto impactingEffects = getAllPassiveUnitEffects(unit, game, modData, [](PassiveUnitEffect const* effect) {
+  auto impactingEffects = getAllPassiveUnitEffects(unit, state, [](PassiveUnitEffect const* effect) {
     return 
       effect->defenseFromFunds
       || effect->defenseFromOwnedTerrain
@@ -172,7 +172,7 @@ int64_t calc::calculateUnitDefense(
       || effect->terrainStarsDefense
     ;
   });
-  auto currentVariant = getCurrentVariant(game, modData);
+  auto currentVariant = getCurrentVariant(state);
   int64_t unitDefense = ranges::fold_left(
     impactingEffects,
     100,
@@ -188,7 +188,7 @@ int64_t calc::calculateUnitDefense(
         sum += effect->indirectDefenseMod.value_or(0);
       }
 
-      auto terrainStarsDefense = effect->terrainStarsDefense.value_or(0) * calculateUnitTerrainStars(unit, game, modData) + effect->terrainStarsFlatDefense.value_or(0);
+      auto terrainStarsDefense = effect->terrainStarsDefense.value_or(0) * calculateUnitTerrainStars(unit, state) + effect->terrainStarsFlatDefense.value_or(0);
       if(modData.config.terrainDefenseScalesWithHitpoints.value_or(false)) {
         terrainStarsDefense = terrainStarsDefense * flatHitPoints(unit.hitPoints.value_or(100)) / 100;
       }
@@ -196,7 +196,7 @@ int64_t calc::calculateUnitDefense(
 
       if(effect->defenseFromOwnedTerrain) {
         for(auto const& [terrainName, mod] : *effect->defenseFromOwnedTerrain) {
-          sum += mod * countTerrainsOwnedByPlayer(player->id, {terrainName}, game, modData);
+          sum += mod * countTerrainsOwnedByPlayer(player->id, {terrainName}, state);
         }
       }
       sum += effect->defenseFromFunds.value_or(0) * player->funds / 1'000;
@@ -208,15 +208,15 @@ int64_t calc::calculateUnitDefense(
 
 int64_t calc::calculateUnitLuck(
   UnitState const& unit,
-  game::Game const& game,
-  ModData const& modData,
+  CalculatorState state,
   bool goodLuck
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
-  auto impactingEffects = getAllPassiveUnitEffects(unit, game, modData, [](PassiveUnitEffect const* effect) {
+  auto impactingEffects = getAllPassiveUnitEffects(unit, state, [](PassiveUnitEffect const* effect) {
     return 
       effect->goodLuckMod
       || effect->badLuckMod
@@ -239,10 +239,10 @@ int64_t calc::calculateUnitLuck(
 int64_t calc::calculateUnitRange(
   UnitState const& unit,
   int64_t weaponIndex,
-  game::Game const& game,
-  ModData const& modData,
+  CalculatorState state,
   bool maxRange
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
@@ -255,7 +255,7 @@ int64_t calc::calculateUnitRange(
   if(!weapon) {
     throw std::runtime_error("Unable to find weapon '" + weaponName + "'");
   }
-  auto impactingEffects = getAllPassiveUnitEffects(unit, game, modData, [](PassiveUnitEffect const* effect) {
+  auto impactingEffects = getAllPassiveUnitEffects(unit, state, [](PassiveUnitEffect const* effect) {
     return 
       effect->maxRangeMod
       || effect->minRangeMod
@@ -278,17 +278,16 @@ int64_t calc::calculateUnitRange(
 calc::UnitIntelFlags calc::getUnitIntel(
   UnitState const& unit,
   PlayerState const* observingPlayer,
-  game::Game const& game,
-  ModData const& modData
+  CalculatorState state
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
   auto impactingEffects = getAllPassiveUnitEffects(
     unit,
-    game,
-    modData,
+    state,
     [](PassiveUnitEffect const* effect) {
       return 
         effect->hiddenHitPoints
@@ -340,17 +339,16 @@ calc::UnitIntelFlags calc::getUnitIntel(
 
 int64_t calc::calculateUnitCapturePoints(
   UnitState const& unit,
-  game::Game const& game,
-  ModData const& modData
+  CalculatorState state
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
   auto impactingEffects = getAllPassiveUnitEffects(
     unit,
-    game,
-    modData,
+    state,
     [](PassiveUnitEffect const* effect) {
       return 
         effect->captureRateMod.has_value()
@@ -368,17 +366,16 @@ int64_t calc::calculateUnitCapturePoints(
 
 int64_t calc::calculateUnitCost(
   UnitState const& unit,
-  game::Game const& game,
-  ModData const& modData
+  CalculatorState state
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
   auto impactingEffects = getAllPassiveUnitEffects(
     unit,
-    game,
-    modData,
+    state,
     [](PassiveUnitEffect const* effect) {
       return 
         effect->unitCostMod.has_value()
@@ -397,9 +394,9 @@ int64_t calc::calculateUnitCost(
 std::optional<int64_t> calc::calculateMovementCost(
   UnitState const& unit,
   TerrainState const& terrain,
-  game::Game const& game,
-  ModData const& modData
+  CalculatorState state
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
@@ -409,13 +406,13 @@ std::optional<int64_t> calc::calculateMovementCost(
     throw std::runtime_error("Unable to find movement class '" + unitType->movementClass + "'");
   }
   PlayerState const* owningPlayer = find(game.playersById, unit.owner.value_or(-1));
-  auto impactingUnitEffects = getAllPassiveGlobalEffects(owningPlayer, game, modData, [](PassiveGlobalEffect const* effect) {
+  auto impactingUnitEffects = getAllPassiveGlobalEffects(owningPlayer, state, [](PassiveGlobalEffect const* effect) {
     return 
       effect->movementClassVariantOverride 
       && effect->movementClassVariantReplace
     ;
   });
-  auto currentVariant = getCurrentVariant(game, modData);
+  auto currentVariant = getCurrentVariant(state);
   for(auto effect : impactingUnitEffects | views::elements<0> | views::reverse) {
     if(currentVariant == effect->movementClassVariantReplace) {
       currentVariant = *effect->movementClassVariantOverride;
@@ -439,10 +436,10 @@ std::optional<int64_t> calc::calculateMovementCost(
 }
 
 std::string calc::getCurrentVariant(
-  game::Game const& game,
-  ModData const& modData
+  CalculatorState state
 ) {
-  auto impactingEffects = getAllPassiveGlobalEffects(nullptr, game, modData, [](PassiveGlobalEffect const* effect) {return effect->variantMod.has_value();});
+  auto const& [game, modData, requestingUser] = state;
+  auto impactingEffects = getAllPassiveGlobalEffects(nullptr, state, [](PassiveGlobalEffect const* effect) {return effect->variantMod.has_value();});
   if(impactingEffects.size() == 0) {
     return game.gameState.variant;
   }
@@ -460,10 +457,10 @@ PlayerState const* calc::getUnitOwner(
 std::vector<std::pair<PassiveUnitEffect const*, PlayerState const*>>
 calc::getAllPassiveUnitEffects(
   UnitState const& unit,
-  game::Game const& game,
-  ModData const& modData,
+  CalculatorState state,
   std::function<bool(PassiveUnitEffect const*)> filter
 ) {
+  auto const& [game, modData, requestingUser] = state;
   UnitType const* unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
@@ -541,10 +538,10 @@ calc::getAllPassiveUnitEffects(
 std::vector<std::pair<PassiveTerrainEffect const*, PlayerState const*>>
 calc::getAllPassiveTerrainEffects(
   TerrainState const& terrain,
-  game::Game const& game,
-  ModData const& modData,
+  CalculatorState state,
   std::function<bool(PassiveTerrainEffect const*)> filter
 ) {
+  auto const& [game, modData, requestingUser] = state;
   std::vector<std::pair<PassiveTerrainEffect const*, PlayerState const*>> allEffects;
   auto terrainType = find(modData.terrains, terrain.name);
   if(!terrainType) {
@@ -637,10 +634,10 @@ calc::getAllPassiveTerrainEffects(
 std::vector<std::pair<PassiveGlobalEffect const*, PlayerState const*>>
 calc::getAllPassiveGlobalEffects(
   PlayerState const* targetPlayer,
-  game::Game const& game,
-  ModData const& modData,
+  CalculatorState state,
   std::function<bool(PassiveGlobalEffect const*)> filter
 ) {
+  auto const& [game, modData, requestingUser] = state;
   std::vector<std::pair<PassiveGlobalEffect const*, PlayerState const*>> allEffects;
   auto activePlayerId = game.gameState.playerOrder.at(game.gameState.playerTurn);
   auto activePlayer = find(game.playersById, activePlayerId);
@@ -777,9 +774,9 @@ bool calc::terrainMatchesEffect(
 int64_t calc::countTerrainsOwnedByPlayer(
   int64_t playerId,
   std::vector<std::string> const& terrainNames,
-  game::Game const& game,
-  ModData const& modData
+  CalculatorState state
 ) {
+  auto const& [game, modData, requestingUser] = state;
   return ranges::fold_left(
     game.terrainsById | views::elements<1>,
     0,
@@ -797,15 +794,15 @@ int64_t calc::countTerrainsOwnedByPlayer(
 
 int64_t calc::calculateUnitTerrainStars(
   UnitState const& unit,
-  game::Game const& game,
-  ModData const& modData
+  CalculatorState state
 ) {
+  auto const& [game, modData, requestingUser] = state;
   auto unitType = find(modData.units, unit.name);
   if(!unitType) {
     throw std::runtime_error("Unable to find unit type '" + unit.name + "'");
   }
   auto impactingEffects = getAllPassiveUnitEffects(
-    unit, game, modData, 
+    unit, state, 
     [](PassiveUnitEffect const* effect) {
       return
         effect->terrainStarsMod
@@ -838,7 +835,11 @@ int64_t calc::calculateUnitTerrainStars(
       return sum + effect->terrainStarsMod.value_or(0);
     }
   );
-  return (terrainStars + flatMod) * multiplier / 100;
+  int64_t finalTerrainStars = (terrainStars + flatMod) * multiplier / 100;
+  if(modData.config.minTerrainStars) {
+    finalTerrainStars = std::max(modData.config.minTerrainStars.value(), finalTerrainStars);
+  }
+  return finalTerrainStars;
 }
 
 calc::Alliance calc::getAlliance(

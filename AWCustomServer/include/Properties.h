@@ -12,7 +12,6 @@ namespace properties {
 		Properties();
 	public:
 		static Properties const& instance();
-		static std::unique_ptr<Properties const> appProperties;
 
 		std::string getString(std::string const& name, std::optional<std::string> defaultValue = {}) const;
 		int64_t getInt(std::string const& name, std::optional<int64_t> defaultValue = {}) const;

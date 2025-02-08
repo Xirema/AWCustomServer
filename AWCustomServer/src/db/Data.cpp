@@ -2,7 +2,7 @@
 #include <SQLUtil.h>
 #include <boost/algorithm/string.hpp>
 #include<future>
-
+using namespace sqlutil;
 namespace db
 {
   namespace
@@ -1382,57 +1382,6 @@ namespace db
       return ret;
     }
 
-    template <typename T>
-    std::optional<T> get(mysql::field_view const &value)
-    {
-      if (value.is_null())
-      {
-        return {};
-      }
-      if constexpr (std::is_same_v<int64_t, T>)
-      {
-        return value.as_int64();
-      }
-      else if constexpr (std::is_same_v<uint64_t, T>)
-      {
-        return value.as_uint64();
-      }
-      else if constexpr (std::is_same_v<std::string, T>)
-      {
-        return std::string{value.as_string()};
-      }
-      else if constexpr (std::is_same_v<int32_t, T>)
-      {
-        return static_cast<int32_t>(value.as_int64());
-      }
-      else if constexpr (std::is_same_v<uint32_t, T>)
-      {
-        return static_cast<uint32_t>(value.as_uint64());
-      }
-      else if constexpr (std::is_same_v<bool, T>)
-      {
-        return static_cast<bool>(value.as_int64());
-      }
-      throw std::runtime_error("Unsupported type in get<T>");
-    }
-
-    template <typename T>
-    void set(T &var, mysql::field_view const &value)
-    {
-      auto opt = get<T>(value);
-      if (!opt)
-      {
-        throw std::runtime_error("Null value for non-nullable field");
-      }
-      var = *opt;
-    }
-
-    template <typename T>
-    void set(std::optional<T> &var, mysql::field_view const &value)
-    {
-      var = get<T>(value);
-    }
-
     void assignUnitData(mysql::row_view const &row, dTypes::UnitType &unit)
     {
       set(unit.name, row[2]);
@@ -2545,18 +2494,10 @@ namespace db
       modId
     );
     for(auto const& row : results.rows()) {
-      if(row.at(2).is_int64()) {
-        ret.minTerrainStars = row.at(2).as_int64();
-      }
-      if(row.at(3).is_int64()) {
-        ret.unlimitedUnload = row.at(3).as_int64();
-      }
-      if(row.at(4).is_int64()) {
-        ret.terrainDefenseScalesWithHitpoints = row.at(4).as_int64();
-      }
-      if(row.at(5).is_int64()) {
-        ret.terrainFirepowerScalesWithHitpoints = row.at(5).as_int64();
-      }
+      set(ret.minTerrainStars, row.at(2));
+      set(ret.unlimitedUnload, row.at(3));
+      set(ret.terrainDefenseScalesWithHitpoints, row.at(4));
+      set(ret.terrainFirepowerScalesWithHitpoints, row.at(5));
     }
     return ret;
   }
@@ -2620,10 +2561,12 @@ namespace db
     {
       dTypes::ModMetadata metadata;
       auto row = results.rows().at(0);
-      metadata.modId = std::to_string(row.at(0).as_int64());
-      metadata.name = row.at(1).as_string();
-      metadata.version = row.at(2).as_string();
-      metadata.expired = !row.at(3).is_null();
+      set(metadata.modId, row.at(0));
+      set(metadata.name, row.at(1));
+      set(metadata.version, row.at(2));
+      if(auto date = get<mysql::datetime>(row.at(3))) {
+        metadata.expired = dateToString(*date);
+      }
       return metadata;
     }
     else
@@ -2675,10 +2618,12 @@ namespace db
     for (auto const &row : results.rows())
     {
       auto &newMetadata = ret.emplace_back();
-      newMetadata.modId = std::to_string(row.at(0).as_int64());
-      newMetadata.name = row.at(1).as_string();
-      newMetadata.version = row.at(2).as_string();
-      newMetadata.expired = !row.at(3).is_null();
+      set(newMetadata.modId, row.at(0));
+      set(newMetadata.name, row.at(1));
+      set(newMetadata.version, row.at(2));
+      if(auto date = get<mysql::datetime>(row.at(3))) {
+        newMetadata.expired = dateToString(*date);
+      }
     }
     return ret;
   }

@@ -3,32 +3,41 @@
 #include<jss/ModMetadata.h>
 
 namespace calc {
+  struct CalculatorState {
+    game::Game const& game;
+    dTypes::ModData const& modData;
+    std::optional<int64_t> requestingUser;
+    CalculatorState(
+      game::Game const& game, 
+      dTypes::ModData const& modData, 
+      std::optional<int64_t> requestingUser = {}
+    ):
+      game(game),
+      modData(modData),
+      requestingUser(requestingUser)
+    {}
+  };
   int64_t calculateUnitMovementRange(
     sTypes::UnitState const& unit,
-    game::Game const& game,
-    dTypes::ModData const& modData
+    CalculatorState state
   );
   int64_t calculateUnitVisionRange(
     sTypes::UnitState const& unit,
-    game::Game const& game,
-    dTypes::ModData const& modData
+    CalculatorState state
   );
   int64_t calculateUnitFirepower(
     sTypes::UnitState const& unit,
-    game::Game const& game,
-    dTypes::ModData const& modData,
+    CalculatorState state,
     bool attacking = true
   );
   int64_t calculateUnitDefense(
     sTypes::UnitState const& unit,
-    game::Game const& game,
-    dTypes::ModData const& modData,
+    CalculatorState state,
     bool attackerIndirect = false
   );
   int64_t calculateUnitLuck(
     sTypes::UnitState const& unit,
-    game::Game const& game,
-    dTypes::ModData const& modData,
+    CalculatorState state,
     bool goodLuck = true
   );
 
@@ -38,31 +47,27 @@ namespace calc {
   );
 
   std::string getCurrentVariant(
-    game::Game const& game,
-    dTypes::ModData const& modData
+    CalculatorState state
   );
 
   std::vector<std::pair<dTypes::PassiveUnitEffect const*, sTypes::PlayerState const*>>
   getAllPassiveUnitEffects(
     sTypes::UnitState const& unit,
-    game::Game const& game,
-    dTypes::ModData const& modData,
+    CalculatorState state,
     std::function<bool(dTypes::PassiveUnitEffect const*)> filter = [](auto && effect) {return true;}
   );
 
   std::vector<std::pair<dTypes::PassiveTerrainEffect const*, sTypes::PlayerState const*>>
   getAllPassiveTerrainEffects(
     sTypes::TerrainState const& terrain,
-    game::Game const& game,
-    dTypes::ModData const& modData,
+    CalculatorState state,
     std::function<bool(dTypes::PassiveTerrainEffect const*)> filter = [](auto && effect) {return true;}
   );
 
   std::vector<std::pair<dTypes::PassiveGlobalEffect const*, sTypes::PlayerState const*>>
   getAllPassiveGlobalEffects(
     sTypes::PlayerState const* targetPlayer,
-    game::Game const& game,
-    dTypes::ModData const& modData,
+    CalculatorState state,
     std::function<bool(dTypes::PassiveGlobalEffect const*)> filter = [](auto && effect) {return true;}
   );
 
@@ -80,41 +85,35 @@ namespace calc {
   int64_t countTerrainsOwnedByPlayer(
     int64_t playerId,
     std::vector<std::string> const& terrainNames,
-    game::Game const& game,
-    dTypes::ModData const& modData
+    CalculatorState state
   );
 
   int64_t calculateUnitTerrainStars(
     sTypes::UnitState const& unit,
-    game::Game const& game,
-    dTypes::ModData const& modData
+    CalculatorState state
   );
 
   int64_t calculateUnitRange(
     sTypes::UnitState const& unit,
     int64_t weaponIndex,
-    game::Game const& game,
-    dTypes::ModData const& modData,
+    CalculatorState state,
     bool maxRange = true
   );
 
   int64_t calculateUnitCapturePoints(
     sTypes::UnitState const& unit,
-    game::Game const& game,
-    dTypes::ModData const& modData
+    CalculatorState state
   );
 
   int64_t calculateUnitCost(
     sTypes::UnitState const& unit,
-    game::Game const& game,
-    dTypes::ModData const& modData
+    CalculatorState state
   );
 
   std::optional<int64_t> calculateMovementCost(
     sTypes::UnitState const& unit,
     sTypes::TerrainState const& terrain,
-    game::Game const& game,
-    dTypes::ModData const& modData
+    CalculatorState state
   );
 
   enum class UnitIntelFlags : uint64_t {
@@ -127,8 +126,7 @@ namespace calc {
   UnitIntelFlags getUnitIntel(
     sTypes::UnitState const& unit,
     sTypes::PlayerState const* observingPlayer,
-    game::Game const& game,
-    dTypes::ModData const& modData
+    CalculatorState state
   );
 
   constexpr UnitIntelFlags& operator|=(UnitIntelFlags & a, UnitIntelFlags b) {

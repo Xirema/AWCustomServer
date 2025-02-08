@@ -44,16 +44,10 @@ namespace properties
       }
     }
   }
-
-  std::unique_ptr<Properties const> Properties::appProperties;
-
   Properties const &Properties::instance()
   {
-    if (!appProperties)
-    {
-      appProperties.reset(new Properties{});
-    }
-    return *appProperties;
+    static Properties appProperties{};
+    return appProperties;
   }
 
   std::string Properties::getString(std::string const &name, std::optional<std::string> defaultValue) const

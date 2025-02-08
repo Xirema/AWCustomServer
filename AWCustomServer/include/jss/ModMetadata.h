@@ -12,8 +12,8 @@ namespace dTypes {
     struct ModMetadata {
         std::string name;
         std::string version;
-        std::optional<std::string> modId;
-        std::optional<bool> expired;
+        std::optional<int64_t> modId;
+        std::optional<std::string> expired;
         std::optional<std::vector<DefaultResourcePack>> defaultResourcePacks;
     };
     BOOST_DESCRIBE_STRUCT(ModMetadata, (), (
