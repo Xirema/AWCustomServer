@@ -12,6 +12,7 @@ add_library(Core OBJECT
   src/RestFunctions.cpp src/RestServer.cpp src/SQLUtil.cpp
   src/StateLookup.cpp src/db/Data.cpp src/GameManager.cpp
   src/db/State.cpp src/Calculator.cpp src/ZipFunctions.cpp
+  src/db/Resource.cpp
 )
 add_executable(Server $<TARGET_OBJECTS:Core> src/Main.cpp)
 target_link_libraries(Server ${Boost_LIBRARIES} ssl crypto dl zip)
@@ -23,3 +24,5 @@ add_executable(JSSTest $<TARGET_OBJECTS:Core> src/test/JSSTest.cpp)
 target_link_libraries(JSSTest ${Boost_LIBRARIES} ssl crypto dl zip)
 add_executable(ChangeTestGame $<TARGET_OBJECTS:Core> src/test/ChangeTestGame.cpp)
 target_link_libraries(ChangeTestGame ${Boost_LIBRARIES} ssl crypto dl zip)
+add_executable(ExtractResourcesFromJson $<TARGET_OBJECTS:Core> src/test/ExtractResourcesFromJson.cpp)
+target_link_libraries(ExtractResourcesFromJson ${Boost_LIBRARIES} ssl crypto dl zip)

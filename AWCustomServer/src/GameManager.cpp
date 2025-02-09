@@ -1,6 +1,7 @@
 #include<GameManager.h>
 #include<future>
 #include<Properties.h>
+#include<DBFunctions.h>
 
 namespace game {
   GameManager& GameManager::instance() {

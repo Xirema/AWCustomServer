@@ -1,8 +1,8 @@
 #pragma once
-#include<RestFunctions.h>
 #include<mutex>
 #include<Coord.h>
 #include<jss/Game.h>
+#include<jss/ModMetadata.h>
 #include<Id.h>
 #include<chrono>
 

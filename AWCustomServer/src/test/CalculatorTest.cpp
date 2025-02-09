@@ -2,6 +2,7 @@
 #include<GameManager.h>
 #include<iostream>
 #include<print>
+#include<Error.h>
 
 int main() {
   try {

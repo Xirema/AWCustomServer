@@ -1,4 +1,5 @@
-#include<RestFunctions.h>
+#include<DBFunctions.h>
+#include<Error.h>
 #include<random>
 #include<SQLUtil.h>
 

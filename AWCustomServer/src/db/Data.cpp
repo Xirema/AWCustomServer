@@ -1,7 +1,8 @@
-#include <RestFunctions.h>
 #include <SQLUtil.h>
 #include <boost/algorithm/string.hpp>
 #include<future>
+#include<DBFunctions.h>
+#include<Error.h>
 using namespace sqlutil;
 namespace db
 {

@@ -1,6 +1,7 @@
 #include <RestFunctions.h>
 #include <charconv>
 #include<GameManager.h>
+#include<DBFunctions.h>
 
 namespace rest
 {
