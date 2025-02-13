@@ -2568,6 +2568,23 @@ namespace db
       if(auto date = get<mysql::datetime>(row.at(3))) {
         metadata.expired = dateToString(*date);
       }
+
+      auto defaultPackStatement = session.connection.prepare_statement(R"SQL(
+        select *
+        from DATA.MOD_DEFAULTPACK_REFERENCE
+        where MOD_ID = ?
+        order by `ORDER`
+      )SQL");
+      mysql::results packResults;
+      session.connection.execute(defaultPackStatement.bind(metadata.modId.value()), packResults);
+      for(auto const& packRow : packResults.rows()) {
+        if(!metadata.defaultResourcePacks) {
+          metadata.defaultResourcePacks.emplace();
+        }
+        auto & defaultResourcePack = metadata.defaultResourcePacks->emplace_back();
+        set(defaultResourcePack.name, packRow.at(2));
+        set(defaultResourcePack.version, packRow.at(4));
+      }
       return metadata;
     }
     else
