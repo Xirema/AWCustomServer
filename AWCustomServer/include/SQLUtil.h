@@ -106,4 +106,10 @@ namespace sqlutil
 		ss >> std::chrono::parse("%F", tp);
 		return mysql::datetime{tp};
 	}
+
+  std::string inline to_string(mysql::field_kind kind) {
+    std::stringstream ss;
+    ss << kind;
+    return ss.str();
+  }
 }

@@ -45,7 +45,7 @@ namespace db {
 	bool upload_pack(rTypes::ResourcePack const& pack);
 	bool upload_pack2(std::vector<uint8_t> archiveFile);
 	rTypes::ResourcePack get_resource_pack(int64_t packId);
-	rTypes::ResourcePack get_resource_pack2(int64_t packId);
+	//rTypes::ResourcePack get_resource_pack2(int64_t packId);
 	rTypes::PackMetadata get_pack_metadata(std::optional<std::string_view> name, std::optional<std::string_view> version, std::optional<int64_t> packId);
 	std::vector<rTypes::PackMetadata> list_packs(bool includeOldPacks);
 }

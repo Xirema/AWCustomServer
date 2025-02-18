@@ -8,13 +8,17 @@ namespace rTypes
         std::string name;
         std::string version;
         std::optional<std::string> created;
-        std::optional<std::string> packId;
+        std::optional<std::string> expired;
+        std::optional<int64_t> packId;
+        std::optional<int64_t> protocol;
     };
     BOOST_DESCRIBE_STRUCT(PackMetadata, (), (
         name,
         version,
         created,
-        packId
+        expired,
+        packId,
+        protocol
     ))
     struct TextResource
     {

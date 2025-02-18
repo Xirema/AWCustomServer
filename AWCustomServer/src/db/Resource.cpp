@@ -3,15 +3,17 @@
 #include <SQLUtil.h>
 #include <ZipFunctions.h>
 #include <boost/algorithm/string.hpp>
-#include<format>
-#include<DBFunctions.h>
-#include<Error.h>
+#include <format>
+#include <DBFunctions.h>
+#include <Error.h>
 
-namespace {
+namespace
+{
   namespace mysql = boost::mysql;
   using ParameterPack = std::vector<mysql::field>;
 
-  mysql::blob toBlob(std::string const &s){
+  mysql::blob toBlob(std::string const &s)
+  {
     mysql::blob ret;
     ret.resize(s.size());
     std::ranges::transform(s, ret.begin(), [](char c)
@@ -33,39 +35,30 @@ namespace {
       int64_t packId)
   {
     auto textResourceInsertStatement = connection.prepare_statement(R"SQL(
-	insert into
-          RESOURCE.TEXT_RESOURCE
-	(
-	  PACK_ID, `KEY`, `TYPE`, SHORTNAME, LONGNAME, DESCRIPTION, LANGUAGE, `ORDER`
-	)
-	values
-	(
-	  ?, ?, ?, ?, ?, ?, ?, ?
-	)
-      )SQL");
+	    insert into
+        RESOURCE.TEXT_RESOURCE
+      (
+        PACK_ID, `KEY`, `TYPE`, SHORTNAME, LONGNAME, DESCRIPTION, LANGUAGE
+      )
+      values
+      (
+        ?, ?, ?, ?, ?, ?, ?
+      )
+    )SQL");
     for (auto const &resource : textResources)
     {
-      size_t i = 0;
-      do
-      {
-        mysql::results results;
+      mysql::results results;
 
-        std::string descPart{
-            resource.description.begin() + i,
-            (i + 512 <= resource.description.size()) ? (resource.description.begin() + i + 512) : (resource.description.end())};
-        connection.execute(
-            textResourceInsertStatement.bind(
-                packId,
-                resource.key,
-                resource.type,
-                resource.shortName,
-                resource.longName,
-                descPart,
-                resource.language,
-                i / 512),
-            results);
-        i += 512;
-      } while (i < resource.description.size());
+      connection.execute(
+          textResourceInsertStatement.bind(
+              packId,
+              resource.key,
+              resource.type,
+              resource.shortName,
+              resource.longName,
+              resource.description,
+              resource.language),
+          results);
     }
   }
 
@@ -182,10 +175,10 @@ namespace {
     auto insertNewPackMetadata = connection.prepare_statement(R"SQL(
 	insert into 
 	  RESOURCE.PACK
-	(NAME, VERSION, CREATED)
+	(NAME, VERSION, CREATED, PROTOCOL)
 	values
 	(
-	  ?, ?, current_timestamp
+	  ?, ?, current_timestamp, ?
 	)
       )SQL");
 
@@ -193,7 +186,9 @@ namespace {
     connection.execute(
         insertNewPackMetadata.bind(
             metadata.name,
-            metadata.version),
+            metadata.version,
+            metadata.protocol.value_or(0)
+          ),
         results);
     int64_t packId = results.last_insert_id();
     return packId;
@@ -220,9 +215,9 @@ namespace {
       newImage.key = std::string{filenameParts.at(1)};
       if (filenameParts.size() >= 4)
       {
-        if (filenameParts.at(3) != "neutral")
+        if (filenameParts.at(2) != "neutral")
         {
-          newImage.armyColor = std::string{filenameParts.at(3)};
+          newImage.armyColor = std::string{filenameParts.at(2)};
         }
       }
       if (filenameParts.size() >= 5)
@@ -238,7 +233,7 @@ namespace {
 
   std::vector<rTypes::TextResource> get_text_resources(int64_t packId)
   {
-    std::map<std::tuple<std::string, std::string, std::optional<std::string>>, rTypes::TextResource> resources;
+    std::vector<rTypes::TextResource> ret;
     sqlutil::Session session;
     auto statement = session.connection.prepare_statement(R"SQL(
       select
@@ -247,8 +242,6 @@ namespace {
         RESOURCE.TEXT_RESOURCE
       where
         PACK_ID = ?
-      order by
-        `ORDER` asc
     )SQL");
 
     mysql::results results;
@@ -258,38 +251,13 @@ namespace {
         results);
     for (auto const &row : results.rows())
     {
-      std::string key, type;
-      std::optional<std::string> language;
-      key = row.at(2).as_string();
-      type = row.at(3).as_string();
-      if (!row.at(7).is_null())
-      {
-        language = row.at(7).as_string();
-      }
-      auto it = resources.find(std::make_tuple(key, type, language));
-      rTypes::TextResource *ptr;
-      if (it != resources.end())
-      {
-        ptr = &it->second;
-      }
-      else
-      {
-        ptr = &resources[std::make_tuple(key, type, language)];
-      }
-      auto &newResource = *ptr;
-      newResource.key = key;
-      newResource.type = type;
-      newResource.language = language;
-
-      std::string descPart = row.at(6).as_string();
-      newResource.description += descPart;
-      newResource.shortName = row.at(4).as_string();
-      newResource.longName = row.at(5).as_string();
-    }
-    std::vector<rTypes::TextResource> ret;
-    for (auto const &[key, resource] : resources)
-    {
-      ret.push_back(resource);
+      auto& newText = ret.emplace_back();
+      sqlutil::set(newText.key, row.at(2));
+      sqlutil::set(newText.type, row.at(3));
+      sqlutil::set(newText.shortName, row.at(4));
+      sqlutil::set(newText.longName, row.at(5));
+      sqlutil::set(newText.description, row.at(6));
+      sqlutil::set(newText.language, row.at(7));
     }
     return ret;
   }
@@ -372,12 +340,13 @@ namespace {
     return ret;
   }
 
-  std::vector<rTypes::ImageResource> get_image_resources2(uint64_t packId) {
+  std::vector<rTypes::ImageResource> get_image_resources2(uint64_t packId)
+  {
     std::vector<rTypes::ImageResource> resources;
     sqlutil::Session session;
     auto statement = session.connection.prepare_statement(R"SQL(
       select
-        (ID, PACK_ID, `KEY`, `TYPE`, ARMYCOLOR, SMALLIMAGEBLOB, LARGEIMAGEBLOB, ORIENTATION, VARIANT)
+        ID, PACK_ID, `KEY`, `TYPE`, ARMYCOLOR, SMALLIMAGEBLOB, LARGEIMAGEBLOB, ORIENTATION, VARIANT
       from
         RESOURCE.IMAGE_RESOURCE
       where
@@ -435,7 +404,8 @@ bool db::upload_pack2(std::vector<uint8_t> archiveFile)
   auto metadataTextObject = json::parse(metadataTextValue).as_object();
   rTypes::ResourcePack pack;
   pack.packMetadata = json::value_to<rTypes::PackMetadata>(metadataTextObject.at("packMetadata"));
-  pack.textResources = json::value_to<std::vector<rTypes::TextResource>>(metadataTextObject.at("imageResources"));
+  pack.packMetadata.protocol = 1;
+  pack.textResources = json::value_to<std::vector<rTypes::TextResource>>(metadataTextObject.at("textResources"));
   pack.imageResources = extractImages(filemap);
   sqlutil::Session session;
   sqlutil::Transaction transaction{session};
@@ -446,25 +416,25 @@ bool db::upload_pack2(std::vector<uint8_t> archiveFile)
   return true;
 }
 
-rTypes::ResourcePack db::get_resource_pack(int64_t packId) {
+rTypes::ResourcePack db::get_resource_pack(int64_t packId)
+{
   rTypes::ResourcePack ret;
   ret.packMetadata = get_pack_metadata({}, {}, packId);
   ret.textResources = get_text_resources(packId);
-  ret.imageResources = get_image_resources(packId);
-  return ret;
-}
-rTypes::ResourcePack db::get_resource_pack2(int64_t packId) {
-  rTypes::ResourcePack ret;
-  ret.packMetadata = get_pack_metadata({}, {}, packId);
-  ret.textResources = get_text_resources(packId);
-  ret.imageResources = get_image_resources2(packId);
+  if(ret.packMetadata.protocol == 0) {
+    ret.imageResources = get_image_resources(packId);
+  } else if(ret.packMetadata.protocol == 1) {
+    ret.imageResources = get_image_resources2(packId);
+  }
   return ret;
 }
 rTypes::PackMetadata db::get_pack_metadata(std::optional<std::string_view> name, std::optional<std::string_view> version, std::optional<int64_t> packId)
 {
   sqlutil::Session session;
-  if (!packId) {
-    if (!name || !version) {
+  if (!packId)
+  {
+    if (!name || !version)
+    {
       throw net::RestError("Name or Version not specified", net::RestError::Type::BAD_REQUEST);
     }
     ParameterPack parameters;
@@ -477,12 +447,15 @@ rTypes::PackMetadata db::get_pack_metadata(std::optional<std::string_view> name,
       where 
         NAME = ?
     )SQL";
-    if (version){
+    if (version)
+    {
       getPackIdSql += R"SQL(
         and VERSION = ?
 	    )SQL";
       parameters.emplace_back(*version);
-    } else {
+    }
+    else
+    {
       getPackIdSql += R"SQL( 
 	      and EXPIRED is null
 	    )SQL";
@@ -494,7 +467,8 @@ rTypes::PackMetadata db::get_pack_metadata(std::optional<std::string_view> name,
             parameters.begin(),
             parameters.end()),
         results);
-    if (results.size() == 0) {
+    if (results.size() == 0)
+    {
       throw net::RestError(std::format("Unable to find Resource Pack named '{}'", *name), net::RestError::Type::NOT_FOUND);
     }
     packId = results.rows().at(0).at(0).as_int64();
@@ -511,21 +485,27 @@ rTypes::PackMetadata db::get_pack_metadata(std::optional<std::string_view> name,
 
   mysql::results results;
   session.connection.execute(getMetadataStatement.bind(packId), results);
-  if (results.size() == 0) {
+  if (results.size() == 0)
+  {
     throw net::RestError(std::format("Unable to find Resource Pack for Pack Id {}", *packId), net::RestError::Type::NOT_FOUND);
   }
-  for (auto const &row : results.rows()) {
-    ret.packId = std::to_string(*packId);
-    ret.name = row.at(1).as_string();
-    ret.version = row.at(2).as_string();
-    mysql::datetime created = row.at(3).as_datetime();
-    ret.created = std::to_string(created.as_time_point().time_since_epoch().count());
+  for (auto const &row : results.rows())
+  {
+    ret.packId = *packId;
+    sqlutil::set(ret.protocol, row.at(1));
+    sqlutil::set(ret.name, row.at(2));
+    sqlutil::set(ret.version, row.at(3));
+    ret.created = sqlutil::dateToString(row.at(4).as_datetime());
+    if(!row.at(5).is_null()) {
+      ret.expired = sqlutil::dateToString(row.at(5).as_datetime());
+    }
     return ret;
   }
   throw net::RestError("This shouldn't happen...!", net::RestError::Type::INTERNAL_ERROR);
 }
 
-std::vector<rTypes::PackMetadata> db::list_packs(bool includeOldPacks) {
+std::vector<rTypes::PackMetadata> db::list_packs(bool includeOldPacks)
+{
   sqlutil::Session session;
   auto &connection = session.connection;
 
@@ -538,7 +518,8 @@ std::vector<rTypes::PackMetadata> db::list_packs(bool includeOldPacks) {
     where
       1 = 1
   )SQL";
-  if (includeOldPacks) {
+  if (!includeOldPacks)
+  {
     getPacksSql += R"SQL(
       and EXPIRED is null
     )SQL";
@@ -553,11 +534,14 @@ std::vector<rTypes::PackMetadata> db::list_packs(bool includeOldPacks) {
   for (auto const &row : results.rows())
   {
     auto& newPack = ret.emplace_back();
-    newPack.packId = std::to_string(row.at(0).as_int64());
-    newPack.name = row.at(1).as_string();
-    newPack.version = row.at(2).as_string();
-    mysql::datetime created = row.at(3).as_datetime();
-    newPack.created = sqlutil::dateToString(created);
+    sqlutil::set(newPack.packId, row.at(0));
+    sqlutil::set(newPack.protocol, row.at(1));
+    sqlutil::set(newPack.name, row.at(2));
+    sqlutil::set(newPack.version, row.at(3));
+    newPack.created = sqlutil::dateToString(row.at(4).as_datetime());
+    if(!row.at(5).is_null()) {
+      newPack.expired = sqlutil::dateToString(row.at(5).as_datetime());
+    }
   }
   return ret;
 }

@@ -2,6 +2,7 @@
 #include<zip.h>
 #include<stdexcept>
 #include<memory>
+#include<print>
 
 namespace {
   struct zip_cleanup {
@@ -37,12 +38,18 @@ ziputil::FileMap ziputil::readArchive(std::vector<uint8_t> const& archive) {
       continue;
     }
     std::unique_ptr<zip_file_t, zip_cleanup> file{zip_fopen_index(zipFile.get(), index, 0)};
-    zip_fseek(file.get(), 0, SEEK_END);
-    auto fileLength = zip_ftell(file.get());
-    zip_fseek(file.get(), 0, SEEK_SET);
+    if(!file) {
+      auto error = zip_get_error(zipFile.get());
+      throw std::runtime_error(std::format("ERROR opening file: {}", error->str));
+    }
     auto & fileData = ret[fileName];
-    fileData.resize(fileLength);
-    zip_fread(file.get(), fileData.data(), fileLength);
+    std::vector<uint8_t> buffer;
+    constexpr size_t BUFFER_SIZE = 65'536;
+    buffer.resize(BUFFER_SIZE);
+    size_t bytesRead = 0;
+    while((bytesRead = zip_fread(file.get(), buffer.data(), BUFFER_SIZE)) > 0) {
+      fileData.insert(fileData.end(), buffer.begin(), buffer.begin() + bytesRead);
+    }
   }
   return ret;
 }
