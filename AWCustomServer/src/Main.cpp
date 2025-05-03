@@ -4,6 +4,7 @@
 #include<iostream>
 #include<Cert.h>
 #include<signal.h>
+#include<RestFunctionUtility.h>
 
 static std::atomic_bool terminated = false;
 
@@ -18,52 +19,45 @@ int main() {
     //net::SSLCert sslCert{.key = cert::key, .cert = cert::certificate};
     //net::RestServer server{ "AWCustom Server", static_cast<uint16_t>(props.getInt("serverPort")), sslCert };
     net::RestServer server{ "AWCustom Server", static_cast<uint16_t>(props.getInt("serverPort"))};
-    std::unordered_map<std::string, net::GETFunc> getFunctions{
-      {"/data/getUnits", rest::data::get_units},
-      {"/data/getWeapons", rest::data::get_weapons},
-      {"/data/getTerrains", rest::data::get_terrains},
-      {"/data/getMovements", rest::data::get_movements},
-      {"/data/getMovementRules", rest::data::get_movement_rules},
-      {"/data/getCommanders", rest::data::get_commanders},
-      {"/data/getPlayers", rest::data::get_players},
-      {"/data/getPUEs", rest::data::get_pues},
-      {"/data/getAUEs", rest::data::get_aues},
-      {"/data/getPTEs", rest::data::get_ptes},
-      {"/data/getATEs", rest::data::get_ates},
-      {"/data/getPGEs", rest::data::get_pges},
-      {"/data/getAGEs", rest::data::get_ages},
-      {"/data/getSettings", rest::data::get_settings},
-      {"/data/getModData", rest::data::get_mod_metadata},
-      {"/data/getMods", rest::data::get_mods},
-      {"/data/getConfig", rest::data::get_mod_config},
-      {"/data/getMod", rest::data::get_mod},
+    net::HTTPFunctionMap functions;
+    functions[net::define(net::HTTPVerb::GET, "/data/getUnits")] = net::convert(rest::data::get_units);
+    functions[net::define(net::HTTPVerb::GET, "/data/getWeapons")] = net::convert(rest::data::get_weapons);
+    functions[net::define(net::HTTPVerb::GET, "/data/getTerrains")] = net::convert(rest::data::get_terrains);
+    functions[net::define(net::HTTPVerb::GET, "/data/getMovements")] = net::convert(rest::data::get_movements);
+    functions[net::define(net::HTTPVerb::GET, "/data/getMovementRules")] = net::convert(rest::data::get_movement_rules);
+    functions[net::define(net::HTTPVerb::GET, "/data/getCommanders")] = net::convert(rest::data::get_commanders);
+    functions[net::define(net::HTTPVerb::GET, "/data/getPlayers")] = net::convert(rest::data::get_players);
+    functions[net::define(net::HTTPVerb::GET, "/data/getPUEs")] = net::convert(rest::data::get_pues);
+    functions[net::define(net::HTTPVerb::GET, "/data/getAUEs")] = net::convert(rest::data::get_aues);
+    functions[net::define(net::HTTPVerb::GET, "/data/getPTEs")] = net::convert(rest::data::get_ptes);
+    functions[net::define(net::HTTPVerb::GET, "/data/getATEs")] = net::convert(rest::data::get_ates);
+    functions[net::define(net::HTTPVerb::GET, "/data/getPGEs")] = net::convert(rest::data::get_pges);
+    functions[net::define(net::HTTPVerb::GET, "/data/getAGEs")] = net::convert(rest::data::get_ages);
+    functions[net::define(net::HTTPVerb::GET, "/data/getSettings")] = net::convert(rest::data::get_settings);
+    functions[net::define(net::HTTPVerb::GET, "/data/getModData")] = net::convert(rest::data::get_mod_metadata);
+    functions[net::define(net::HTTPVerb::GET, "/data/getMods")] = net::convert(rest::data::get_mods);
+    functions[net::define(net::HTTPVerb::GET, "/data/getConfig")] = net::convert(rest::data::get_mod_config);
+    functions[net::define(net::HTTPVerb::GET, "/data/getMod")] = net::convert(rest::data::get_mod);
 
-      {"/state/getGameState", rest::state::get_gamestate},
-      {"/state/getUnitStates", rest::state::get_unitstates},
-      {"/state/getTerrainStates", rest::state::get_terrainstates},
-      {"/state/getPlayerStates", rest::state::get_playerstates},
-      {"/state/getSettingState", rest::state::get_settingstate},
+    functions[net::define(net::HTTPVerb::GET, "/state/getGameState")] = net::convert(rest::state::get_gamestate);
+    functions[net::define(net::HTTPVerb::GET, "/state/getUnitStates")] = net::convert(rest::state::get_unitstates);
+    functions[net::define(net::HTTPVerb::GET, "/state/getTerrainStates")] = net::convert(rest::state::get_terrainstates);
+    functions[net::define(net::HTTPVerb::GET, "/state/getPlayerStates")] = net::convert(rest::state::get_playerstates);
+    functions[net::define(net::HTTPVerb::GET, "/state/getSettingState")] = net::convert(rest::state::get_settingstate);
 
-      {"/resource/getPack", rest::resource::get_resource_pack},
-      {"/resource/getMetadata", rest::resource::get_pack_metadata},
-      {"/resource/listPacks", rest::resource::list_packs}
-    };
-    std::unordered_map<std::string, net::POSTFunc> postFunctions{
-      {"/data/uploadMod", rest::data::upload_mod},
-      {"/resource/uploadPack", rest::resource::upload_pack}
-    };
-    std::unordered_map<std::string, net::PUTFunc> putFunctions;
-    server.start(getFunctions, postFunctions, putFunctions);
+    functions[net::define(net::HTTPVerb::GET, "/resource/getPack")] = net::convert(rest::resource::get_resource_pack);
+    functions[net::define(net::HTTPVerb::GET, "/resource/getMetadata")] = net::convert(rest::resource::get_pack_metadata);
+    functions[net::define(net::HTTPVerb::GET, "/resource/listPacks")] = net::convert(rest::resource::list_packs);
+    
+    functions[net::define(net::HTTPVerb::POST, "/data/uploadMod")] = rest::data::upload_mod;
+    functions[net::define(net::HTTPVerb::POST, "/resource/uploadPack")] = rest::resource::upload_pack;
+
+    server.start(functions);
     //server.printRequests(true);
     std::cout << "Listening for the following endpoints:" << std::endl;
-    for (auto const& [name, func] : getFunctions) {
-      std::cout << "  GET:  " << name << std::endl;
-    }
-    for (auto const& [name, func] : postFunctions) {
-      std::cout << "  POST: " << name << std::endl;
-    }
-    for (auto const& [name, func] : putFunctions) {
-      std::cout << "  PUT:  " << name << std::endl;
+    for (auto const& [definition, func] : functions) {
+      auto const& [verb, name] = definition;
+      std::cout << "  " << boost::describe::enum_to_string(verb, "unknown") << ":  " << name << std::endl;
     }
 
     signal(SIGTERM, terminationHandler);

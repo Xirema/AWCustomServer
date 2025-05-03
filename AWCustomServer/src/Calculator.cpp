@@ -15,9 +15,13 @@ namespace {
     {obj.name} -> std::convertible_to<std::string_view>;
   };
 
-  template<typename Range>
-  requires Named<ranges::range_value_t<Range>>
-  auto find(Range && range, std::string_view name) -> decltype(&*range.begin()) {
+  template<typename Type>
+  concept NamedRange = Named<ranges::range_value_t<Type>>;
+
+  template<typename Type>
+  concept StringRange = std::is_same_v<ranges::range_value_t<Type>, std::string>;
+
+  auto find(NamedRange auto && range, std::string_view name) -> decltype(&*range.begin()) {
     auto candidate = ranges::find_if(range, [name](Named auto && obj) {return obj.name == name;});
     if(candidate == range.end()) {
       return nullptr;
@@ -34,11 +38,8 @@ namespace {
     return &it->second;
   }
 
-  template<typename Range, typename Names>
-  requires Named<ranges::range_value_t<Range>> 
-  && std::is_same_v<std::string, ranges::range_value_t<Names>>
-  std::vector<ranges::range_value_t<Range> const*> findAll(Range && range, Names && names) {
-    std::vector<ranges::range_value_t<Range> const*> ret;
+  auto findAll(NamedRange auto && range, StringRange auto && names) {
+    std::vector<ranges::range_value_t<decltype(range)> const*> ret;
     for(std::string const& name : names) {
       if(auto const* ptr = find(range, name)) {
         ret.emplace_back(ptr);

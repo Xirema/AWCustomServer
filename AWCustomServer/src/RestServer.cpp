@@ -69,41 +69,42 @@ namespace net
 	{
 		friend class RestServer;
 		friend class RestServerSession;
-		struct CaseInsensitiveStringComparator
-		{
-			bool operator()(std::string const &a, std::string const &b) const
-			{
-				return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b)
-													{ return std::toupper(a) == std::toupper(b); });
-			}
-			bool operator()(std::string_view a, std::string const &b) const
-			{
-				return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b)
-													{ return std::toupper(a) == std::toupper(b); });
-			}
-			bool operator()(std::string const &a, std::string_view b) const
-			{
-				return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b)
-													{ return std::toupper(a) == std::toupper(b); });
-			}
-			size_t operator()(std::string a) const
-			{
-				for (char &c : a)
-					c = std::toupper(c);
-				return std::hash<std::string>{}(a);
-			}
-			size_t operator()(std::string_view str) const
-			{
-				std::string a{str};
-				for (char &c : a)
-					c = std::toupper(c);
-				return std::hash<std::string>{}(a);
-			}
-		};
+		// struct CaseInsensitiveStringComparator
+		// {
+		// 	bool operator()(std::string const &a, std::string const &b) const
+		// 	{
+		// 		return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b)
+		// 											{ return std::toupper(a) == std::toupper(b); });
+		// 	}
+		// 	bool operator()(std::string_view a, std::string const &b) const
+		// 	{
+		// 		return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b)
+		// 											{ return std::toupper(a) == std::toupper(b); });
+		// 	}
+		// 	bool operator()(std::string const &a, std::string_view b) const
+		// 	{
+		// 		return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b)
+		// 											{ return std::toupper(a) == std::toupper(b); });
+		// 	}
+		// 	size_t operator()(std::string a) const
+		// 	{
+		// 		for (char &c : a)
+		// 			c = std::toupper(c);
+		// 		return std::hash<std::string>{}(a);
+		// 	}
+		// 	size_t operator()(std::string_view str) const
+		// 	{
+		// 		std::string a{str};
+		// 		for (char &c : a)
+		// 			c = std::toupper(c);
+		// 		return std::hash<std::string>{}(a);
+		// 	}
+		// };
 		std::vector<std::thread> threads;
-		std::unordered_map<std::string, GETFunc, CaseInsensitiveStringComparator, CaseInsensitiveStringComparator> getFunctions;
-		std::unordered_map<std::string, POSTFunc, CaseInsensitiveStringComparator, CaseInsensitiveStringComparator> postFunctions;
-		std::unordered_map<std::string, PUTFunc, CaseInsensitiveStringComparator, CaseInsensitiveStringComparator> putFunctions;
+    HTTPFunctionMap functions;
+		// std::unordered_map<std::string, GETFunc, CaseInsensitiveStringComparator, CaseInsensitiveStringComparator> getFunctions;
+		// std::unordered_map<std::string, POSTFunc, CaseInsensitiveStringComparator, CaseInsensitiveStringComparator> postFunctions;
+		// std::unordered_map<std::string, PUTFunc, CaseInsensitiveStringComparator, CaseInsensitiveStringComparator> putFunctions;
 		std::atomic_bool shouldStop;
 		networking::io_context ioContext;
 		std::unique_ptr<networking::io_context::work> work_ptr;
@@ -297,50 +298,36 @@ namespace net
 					headers.httpHeaders[std::string{val.name_string()}] = std::string{val.value()};
 				}
 
-				try
-				{
-					if (request.method() == http::verb::get)
-					{
-						if (auto it = parent->getFunctions.find(headers.target); it != parent->getFunctions.end())
-						{
-							response.body() = it->second(headers);
-							response.content_length(response.body().size());
-						}
-						else
-						{
-							return do_send(not_found(headers.target));
-						}
-					}
-					else if (request.method() == http::verb::post)
-					{
-						if (auto it = parent->postFunctions.find(headers.target); it != parent->postFunctions.end())
-						{
-							response.body() = it->second(headers, request.body());
-							response.content_length(response.body().size());
-						}
-						else
-						{
-							return do_send(not_found(headers.target));
-						}
-					}
-					else if (request.method() == http::verb::put)
-					{
-						if (auto it = parent->putFunctions.find(headers.target); it != parent->putFunctions.end())
-						{
-							response.body() = it->second(headers, request.body());
-							response.content_length(response.body().size());
-						}
-						else
-						{
-							return do_send(not_found(headers.target));
-						}
-					}
-					else if (request.method() == http::verb::options)
+        HTTPVerb verb;
+        auto method = request.method();
+        switch(method) {
+        case http::verb::get: 
+          verb = HTTPVerb::GET;
+          break;
+        case http::verb::post:
+          verb = HTTPVerb::POST;
+          break;
+        case http::verb::put:
+          verb = HTTPVerb::PUT;
+          break;
+        case http::verb::delete_:
+          verb = HTTPVerb::DELETE;
+          break;
+        case http::verb::options:
+          verb = HTTPVerb::OPTIONS;
+          break;
+        default:
+          return do_send(bad_request(RestError("An error occurred: 'Unhandled HTTP-Method'", RestError::Type::BAD_REQUEST)));
+        }
+
+        try
+        {
+					if (verb == HTTPVerb::OPTIONS)
 					{
 						string_response response{http::status::no_content, request.version()};
 						response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
 						response.set(http::field::access_control_allow_origin, "*");
-						response.set(http::field::access_control_allow_methods, "GET, POST, PUT");
+						response.set(http::field::access_control_allow_methods, "GET, POST, PUT, DELETE");
 						response.set(http::field::access_control_allow_headers, "*");
 						response.set(http::field::access_control_max_age, "86400");
 						response.keep_alive(request.keep_alive());
@@ -349,7 +336,13 @@ namespace net
 					}
 					else
 					{
-						return do_send(bad_request(RestError("An error occurred: 'Unhandled HTTP-Method'", RestError::Type::BAD_REQUEST)));
+						HTTPFunctionDefinition definition{.verb = verb, .name = headers.target};
+            if(auto it = parent->functions.find(definition); it != parent->functions.end()) {
+              response.body() = it->second(headers, request.body());
+              response.content_length(response.body().size());
+            } else {
+              return do_send(not_found(headers.target));
+            }
 					}
 				}
 				catch (RestError const &e)
@@ -533,23 +526,9 @@ namespace net
 		impl->join();
 	}
 
-	void RestServer::start(
-			std::unordered_map<std::string, GETFunc> getFunctions,
-			std::unordered_map<std::string, POSTFunc> postFunctions,
-			std::unordered_map<std::string, PUTFunc> putFunctions)
+	void RestServer::start(HTTPFunctionMap functions)
 	{
-		for (auto &[name, func] : getFunctions)
-		{
-			impl->getFunctions[name] = std::move(func);
-		}
-		for (auto &[name, func] : postFunctions)
-		{
-			impl->postFunctions[name] = std::move(func);
-		}
-		for (auto &[name, func] : putFunctions)
-		{
-			impl->putFunctions[name] = std::move(func);
-		}
+    impl->functions = std::move(functions);
 		impl->do_accept();
 		if constexpr (DEBUGGING)
 		{
