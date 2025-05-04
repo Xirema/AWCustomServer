@@ -20,13 +20,36 @@ namespace net {
     };
   }
 
+  template<typename JSTypeOut>
+  requires jss::JSONable<JSTypeOut>
+  void insert(HTTPFunctionMap & map, HTTPFunctionDefinition definition, std::function<JSTypeOut(HTTPHeaders const&)> function) {
+    map[definition] = [function](HTTPHeaders const& headers, std::string body) {
+      return boost::json::serialize(
+        boost::json::value_from(
+          function(
+            headers
+          )
+        )
+      );
+    };
+  }
+
   HTTPFunc convert(GETFunc func) {
     return [func](HTTPHeaders const& headers, std::string body) {
       return func(headers);
     };
   }
 
-  HTTPFunctionDefinition define(HTTPVerb verb, std::string name) {
-    return {.verb=verb, .name=std::move(name)};
+  HTTPFunctionDefinition defineGet(std::string name) {
+    return {.verb=HTTPVerb::GET, .name=std::move(name)};
+  }
+  HTTPFunctionDefinition definePost(std::string name) {
+    return {.verb=HTTPVerb::POST, .name=std::move(name)};
+  }
+  HTTPFunctionDefinition definePut(std::string name) {
+    return {.verb=HTTPVerb::PUT, .name=std::move(name)};
+  }
+  HTTPFunctionDefinition defineDelete(std::string name) {
+    return {.verb=HTTPVerb::DELETE, .name=std::move(name)};
   }
 }
