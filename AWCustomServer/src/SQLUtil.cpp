@@ -31,14 +31,14 @@ namespace sqlutil {
   Transaction::Transaction(Session& session) :
     session(session) {
     boost::mysql::results results;
-    this->session.connection.query("START TRANSACTION", results);
+    this->session.connection.execute("START TRANSACTION", results);
   }
 
   Transaction::~Transaction() {
     try {
       if (!committed) {
 	boost::mysql::results results;
-	session.connection.query("ROLLBACK", results);
+	session.connection.execute("ROLLBACK", results);
       }
     }
     catch (...) {
@@ -48,7 +48,7 @@ namespace sqlutil {
   }
   void Transaction::commit() {
     boost::mysql::results results;
-    session.connection.query("COMMIT", results);
+    session.connection.execute("COMMIT", results);
     committed = true;
   }
 }

@@ -64,7 +64,7 @@ class RestServerImpl {
   HTTPFunctionMap functions;
   std::atomic_bool shouldStop;
   networking::io_context ioContext;
-  std::unique_ptr<networking::io_context::work> work_ptr;
+  std::unique_ptr<networking::executor_work_guard<networking::io_context::executor_type>> work_ptr;
   tcp::acceptor acceptor;
   std::mutex funcMutex;
   std::optional<SSLCert> sslCert;
@@ -389,7 +389,7 @@ class RestServerImpl {
       uint16_t port,
       std::optional<SSLCert> sslCert,
       uint32_t maxThreadCount) : ioContext(maxThreadCount <= 1'024 ? maxThreadCount : 1'024),
-                                 work_ptr(std::make_unique<networking::io_context::work>(ioContext)),
+                                 work_ptr(std::make_unique<networking::executor_work_guard<networking::io_context::executor_type>>(ioContext.get_executor())),
                                  acceptor(networking::make_strand(ioContext)),
                                  sslCert(std::move(sslCert)),
                                  sslContext(ssl::context::tlsv12_server) {
