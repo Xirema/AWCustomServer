@@ -8,7 +8,7 @@ It uses a MySQL server to persist data.
 
 ## Build Environment
 
-This server builds for Linux using GCC-14 or higher.
+This server builds for Linux using GCC-14. GCC-15 currently issues assembler errors (probably the Boost Library).
 
 ## Required Libraries
 

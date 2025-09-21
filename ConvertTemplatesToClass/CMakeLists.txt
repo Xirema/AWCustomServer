@@ -1,7 +1,7 @@
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost 1.84.0 REQUIRED COMPONENTS system json)
+find_package(Boost 1.89.0 REQUIRED COMPONENTS json)
 find_package(OpenSSL REQUIRED)
 add_compile_options(-Wall -Werror -pedantic-errors -std=c++26 -fconcepts-diagnostics-depth=2)
 include_directories(${Boost_INCLUDE_DIRS})
