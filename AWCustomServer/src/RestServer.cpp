@@ -182,13 +182,13 @@ class RestServerImpl {
       auto const bad_request =
           [&request](RestError const &e) {
             http::status status = [type = e.type] {
-              if (type == RestError::Type::BAD_REQUEST)
+              if (type == RestErrorType::BAD_REQUEST)
                 return http::status::bad_request;
-              if (type == RestError::Type::INTERNAL_ERROR)
+              if (type == RestErrorType::INTERNAL_ERROR)
                 return http::status::internal_server_error;
-              if (type == RestError::Type::INVALID_DATA)
+              if (type == RestErrorType::INVALID_DATA)
                 return http::status::bad_request;
-              if (type == RestError::Type::NOT_FOUND)
+              if (type == RestErrorType::NOT_FOUND)
                 return http::status::not_found;
               return http::status::unknown;
             }();
@@ -247,7 +247,7 @@ class RestServerImpl {
           verb = HTTPVerb::OPTIONS;
           break;
         default:
-          return do_send(bad_request(RestError("An error occurred: 'Unhandled HTTP-Method'", RestError::Type::BAD_REQUEST)));
+          return do_send(bad_request(RestError("An error occurred: 'Unhandled HTTP-Method'", RestErrorType::BAD_REQUEST)));
       }
 
       try {
@@ -273,12 +273,12 @@ class RestServerImpl {
       } catch (RestError const &e) {
         return do_send(bad_request(e));
       } catch (boost::mysql::error_with_diagnostics const &e) {
-        return do_send(bad_request(RestError("Internal SQL Error: '" + std::string(e.get_diagnostics().client_message()) + "'/'" + std::string(e.get_diagnostics().server_message()) + "'", RestError::Type::INTERNAL_ERROR)));
+        return do_send(bad_request(RestError("Internal SQL Error: '" + std::string(e.get_diagnostics().client_message()) + "'/'" + std::string(e.get_diagnostics().server_message()) + "'", RestErrorType::INTERNAL_ERROR)));
       } catch (...) {
         try {
           std::rethrow_exception(std::current_exception());
         } catch (std::exception const &e) {
-          return do_send(bad_request(RestError("Internal Error: " + std::string(e.what()), net::RestError::Type::INTERNAL_ERROR)));
+          return do_send(bad_request(RestError("Internal Error: " + std::string(e.what()), net::RestErrorType::INTERNAL_ERROR)));
         }
       }
 

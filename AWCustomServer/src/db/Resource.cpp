@@ -208,7 +208,7 @@ namespace
                    { return c == '/'; });
       if (filenameParts.size() < 3)
       {
-        throw net::RestError("Resource Pack Directory Structure is incorrect.", net::RestError::Type::INVALID_DATA);
+        throw net::RestError("Resource Pack Directory Structure is incorrect.", net::RestErrorType::INVALID_DATA);
       }
       auto &newImage = ret.emplace_back();
       newImage.type = std::string{filenameParts.at(0)};
@@ -237,7 +237,7 @@ namespace
     sqlutil::Session session;
     auto statement = session.connection.prepare_statement(R"SQL(
       select
-        *
+        `ID`, `PACK_ID`, `KEY`, `TYPE`, `SHORTNAME`, `LONGNAME`, `DESCRIPTION`, `LANGUAGE`
       from
         RESOURCE.TEXT_RESOURCE
       where
@@ -435,7 +435,7 @@ rTypes::PackMetadata db::get_pack_metadata(std::optional<std::string_view> name,
   {
     if (!name || !version)
     {
-      throw net::RestError("Name or Version not specified", net::RestError::Type::BAD_REQUEST);
+      throw net::RestError("Name or Version not specified", net::RestErrorType::BAD_REQUEST);
     }
     ParameterPack parameters;
     parameters.emplace_back(*name);
@@ -469,14 +469,14 @@ rTypes::PackMetadata db::get_pack_metadata(std::optional<std::string_view> name,
         results);
     if (results.size() == 0)
     {
-      throw net::RestError(std::format("Unable to find Resource Pack named '{}'", *name), net::RestError::Type::NOT_FOUND);
+      throw net::RestError(std::format("Unable to find Resource Pack named '{}'", *name), net::RestErrorType::NOT_FOUND);
     }
     packId = results.rows().at(0).at(0).as_int64();
   }
   rTypes::PackMetadata ret;
   auto getMetadataStatement = session.connection.prepare_statement(R"SQL(
     select 
-      *
+      `PACK_ID`, `PROTOCOL`, `NAME`, `VERSION`, `CREATED`, `EXPIRED`
     from
       RESOURCE.PACK
     where
@@ -487,7 +487,7 @@ rTypes::PackMetadata db::get_pack_metadata(std::optional<std::string_view> name,
   session.connection.execute(getMetadataStatement.bind(packId), results);
   if (results.size() == 0)
   {
-    throw net::RestError(std::format("Unable to find Resource Pack for Pack Id {}", *packId), net::RestError::Type::NOT_FOUND);
+    throw net::RestError(std::format("Unable to find Resource Pack for Pack Id {}", *packId), net::RestErrorType::NOT_FOUND);
   }
   for (auto const &row : results.rows())
   {
@@ -501,7 +501,7 @@ rTypes::PackMetadata db::get_pack_metadata(std::optional<std::string_view> name,
     }
     return ret;
   }
-  throw net::RestError("This shouldn't happen...!", net::RestError::Type::INTERNAL_ERROR);
+  throw net::RestError("This shouldn't happen...!", net::RestErrorType::INTERNAL_ERROR);
 }
 
 std::vector<rTypes::PackMetadata> db::list_packs(bool includeOldPacks)
@@ -512,7 +512,7 @@ std::vector<rTypes::PackMetadata> db::list_packs(bool includeOldPacks)
   ParameterPack parameters;
   std::string getPacksSql = R"SQL(
     select 
-      *
+      `PACK_ID`, `PROTOCOL`, `NAME`, `VERSION`, `CREATED`, `EXPIRED`
     from
       RESOURCE.PACK
     where

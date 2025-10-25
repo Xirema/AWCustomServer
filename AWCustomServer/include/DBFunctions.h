@@ -15,6 +15,10 @@
 #include<jss/Unit.h>
 #include<jss/UnitState.h>
 
+#include<Error.h>
+
+#include<expected>
+
 namespace db {
 	bool upload_mod(dTypes::ModData const& mod);
 	std::vector<dTypes::UnitType> get_units(int64_t modId, std::optional<std::string_view> const& filter);
@@ -48,4 +52,6 @@ namespace db {
 	//rTypes::ResourcePack get_resource_pack2(int64_t packId);
 	rTypes::PackMetadata get_pack_metadata(std::optional<std::string_view> name, std::optional<std::string_view> version, std::optional<int64_t> packId);
 	std::vector<rTypes::PackMetadata> list_packs(bool includeOldPacks);
+
+  std::expected<std::string, DBErrorCode> check_db_version();
 }

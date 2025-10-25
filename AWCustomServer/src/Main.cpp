@@ -6,15 +6,37 @@
 #include<signal.h>
 #include<RestFunctionUtility.h>
 
+#include<DBFunctions.h>
+#include<dbs/DBTablesCurrent.h>
+#include<Cli.h>
+
+#include<print>
+#include<iostream>
+
 static std::atomic_bool terminated = false;
 
 void terminationHandler(int signal) {
   terminated = true;
 }
 
-int main() {
+int main(int argc, char const ** argv) {
+  cli::CommandLineInterface commandLine{argc, argv};
+  if (commandLine.isDBRebuildRequested()) {
+    dbcurrent::buildDatabase();
+  }
   try {
     properties::Properties const& props = properties::Properties::instance();
+    auto dbVersion = db::check_db_version();
+    if (dbVersion.has_value()) {
+      auto version = *dbVersion;
+      if (version != dbcurrent::CURRENT_VERSION) {
+        std::println(std::cerr, "DB is out of date and requires reconstructing: Version {}", version);
+        return -1;
+      }
+    } else {
+      std::println(std::cerr, "DB Error, DB requires reconstructing.");
+      return -1;
+    }
     //Uncomment to reenable SSL
     //net::SSLCert sslCert{.key = cert::key, .cert = cert::certificate};
     //net::RestServer server{ "AWCustom Server", static_cast<uint16_t>(props.getInt("serverPort")), sslCert };

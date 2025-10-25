@@ -39,7 +39,7 @@ namespace db {
       }
       return gameState;
     }
-    throw net::RestError("No Game Found", net::RestError::Type::INVALID_DATA);
+    throw net::RestError("No Game Found", net::RestErrorType::INVALID_DATA);
   }
 	std::vector<sTypes::PlayerState> get_playerstates(int64_t gameId) {
     std::vector<sTypes::PlayerState> ret;
@@ -52,7 +52,7 @@ namespace db {
     mysql::results results;
     session.connection.execute(statement.bind(gameId), results);
     if(results.rows().size() == 0) {
-      throw net::RestError("Game has no players (or does not exist)", net::RestError::Type::NOT_FOUND);
+      throw net::RestError("Game has no players (or does not exist)", net::RestErrorType::NOT_FOUND);
     }
     for(auto const& row : results.rows()) {
       auto& newPlayer = ret.emplace_back();
@@ -138,6 +138,7 @@ namespace db {
         select *
         from STATE.UNIT_TRANSPORT_REFERENCE
         where GAME_ID = ? and TRANSPORT_ID = ?
+        order by `ORDER` asc
       )SQL");
       mysql::results transportResults;
       session.connection.execute(transportStatement.bind(gameId, newUnit.id), transportResults);

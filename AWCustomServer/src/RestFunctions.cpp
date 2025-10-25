@@ -18,7 +18,7 @@ namespace rest
         {
           return result;
         }
-        throw net::RestError("Problem Parsing number: '" + std::string(s) + "'", net::RestError::Type::BAD_REQUEST);
+        throw net::RestError("Problem Parsing number: '" + std::string(s) + "'", net::RestErrorType::BAD_REQUEST);
       }
     }
     std::string upload_mod(net::HTTPHeaders const &headers, std::string body)
@@ -28,7 +28,7 @@ namespace rest
       auto ret = db::upload_mod(modData);
       if (ret)
         return "Success";
-      throw net::RestError("Internal Error Uploading Mod", net::RestError::Type::INTERNAL_ERROR);
+      throw net::RestError("Internal Error Uploading Mod", net::RestErrorType::INTERNAL_ERROR);
     }
     std::string get_mod_metadata(net::HTTPHeaders const &headers)
     {

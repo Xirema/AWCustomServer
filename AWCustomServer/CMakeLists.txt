@@ -1,7 +1,6 @@
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
-# set(Boost_ROOT /sharedy/workspaces/boost)
 find_package(Boost 1.89.0 REQUIRED COMPONENTS charconv json)
 find_package(OpenSSL REQUIRED)
 find_package(libzip REQUIRED)
@@ -13,7 +12,8 @@ add_library(Core OBJECT
   src/RestFunctions.cpp src/RestServer.cpp src/SQLUtil.cpp
   src/StateLookup.cpp src/db/Data.cpp src/GameManager.cpp
   src/db/State.cpp src/Calculator.cpp src/ZipFunctions.cpp
-  src/db/Resource.cpp
+  src/db/Resource.cpp src/db/General.cpp src/db/DBTablesV0.0.1.cpp
+  src/Cli.cpp
 )
 add_executable(Server $<TARGET_OBJECTS:Core> src/Main.cpp)
 target_link_libraries(Server ${Boost_LIBRARIES} ssl crypto dl zip)

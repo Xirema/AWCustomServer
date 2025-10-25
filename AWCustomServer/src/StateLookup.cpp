@@ -10,7 +10,7 @@ namespace
     {
       return std::stoll(ret->second);
     }
-    throw net::RestError("Game Id not specified", net::RestError::Type::INVALID_DATA);
+    throw net::RestError("Game Id not specified", net::RestErrorType::INVALID_DATA);
   }
 }
 

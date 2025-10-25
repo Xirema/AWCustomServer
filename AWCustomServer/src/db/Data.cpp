@@ -1281,7 +1281,7 @@ namespace db
     }
     catch (std::runtime_error const &e)
     {
-      throw net::RestError("There was a problem parsing the Mod Data: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
+      throw net::RestError("There was a problem parsing the Mod Data: " + std::string(e.what()), net::RestErrorType::INVALID_DATA);
     }
   }
 
@@ -2547,7 +2547,7 @@ namespace db
       }
       else
       {
-        throw net::RestError("No ModId or Name provided in request", net::RestError::Type::BAD_REQUEST);
+        throw net::RestError("No ModId or Name provided in request", net::RestErrorType::BAD_REQUEST);
       }
     }
     sql += R"SQL(
@@ -2589,7 +2589,7 @@ namespace db
     }
     else
     {
-      throw net::RestError("No Mod Found", net::RestError::Type::INVALID_DATA);
+      throw net::RestError("No Mod Found", net::RestErrorType::INVALID_DATA);
     }
   }
 

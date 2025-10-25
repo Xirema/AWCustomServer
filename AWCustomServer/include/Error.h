@@ -3,20 +3,24 @@
 #include<format>
 #include<print>
 
+#include<boost/describe.hpp>
+
 namespace net {
+  BOOST_DEFINE_ENUM_CLASS(RestErrorType, NONE, BAD_REQUEST, INTERNAL_ERROR, INVALID_DATA, NOT_FOUND)
 	struct RestError {
 		std::string message;
-		enum class Type {
-			BAD_REQUEST, INTERNAL_ERROR, INVALID_DATA, NOT_FOUND
-		};
-		Type type;
-		RestError():RestError("", Type::NOT_FOUND) {}
-		RestError(std::string message, Type type) : message(std::move(message)), type(type) {}
+		RestErrorType type;
+		RestError():RestError("", RestErrorType::NOT_FOUND) {}
+		RestError(std::string message, RestErrorType type) : message(std::move(message)), type(type) {}
 	};
 }
 
+namespace db {
+  BOOST_DEFINE_ENUM_CLASS(DBErrorCode, NONE, TABLE_NOT_FOUND, RESULTS_EMPTY, UNKNOWN, DB_WRONG_VERSION)
+}
+
 template<>
-struct std::formatter<net::RestError::Type> {
+struct std::formatter<net::RestErrorType> {
 	template<typename ParseContext>
 	constexpr auto parse(ParseContext& ctx) {
 		auto it = ctx.begin();
@@ -27,19 +31,19 @@ struct std::formatter<net::RestError::Type> {
 	}
 
 	template<class FmtContext>
-	auto format(net::RestError::Type type, FmtContext & ctx) const {
+	auto format(net::RestErrorType type, FmtContext & ctx) const {
 		std::string s;
 		switch(type) {
-		case net::RestError::Type::BAD_REQUEST:
+		case net::RestErrorType::BAD_REQUEST:
 			s = "BAD_REQUEST";
 			break;
-		case net::RestError::Type::INTERNAL_ERROR:
+		case net::RestErrorType::INTERNAL_ERROR:
 			s = "INTERNAL_ERROR";
 			break;
-		case net::RestError::Type::INVALID_DATA:
+		case net::RestErrorType::INVALID_DATA:
 			s = "INVALID_DATA";
 			break;
-		case net::RestError::Type::NOT_FOUND:
+		case net::RestErrorType::NOT_FOUND:
 			s = "NOT_FOUND";
 			break;
 		default:

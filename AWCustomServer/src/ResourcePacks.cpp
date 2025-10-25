@@ -16,7 +16,7 @@ std::string rest::resource::get_pack_metadata(net::HTTPHeaders const &headers)
     auto& packIdRef = packId.emplace();
     auto [ptr, ec] = std::from_chars(&*it->second.begin(), &*it->second.end(), packIdRef);
     if(ec != std::errc{}) {
-      throw net::RestError(std::format("packid header not a number: '{}'", it->second), net::RestError::Type::BAD_REQUEST);
+      throw net::RestError(std::format("packid header not a number: '{}'", it->second), net::RestErrorType::BAD_REQUEST);
     }
   }
   rTypes::PackMetadata ret = db::get_pack_metadata(name, version, packId);
@@ -32,7 +32,7 @@ std::string rest::resource::get_resource_pack(net::HTTPHeaders const &headers)
   }
   else
   {
-    throw net::RestError("Pack Id not specified", net::RestError::Type::NOT_FOUND);
+    throw net::RestError("Pack Id not specified", net::RestErrorType::NOT_FOUND);
   }
   auto ret = db::get_resource_pack(packId);
   return serialize(json::value_from(ret));
@@ -47,7 +47,7 @@ std::string rest::resource::get_resource_pack(net::HTTPHeaders const &headers)
 //   }
 //   else
 //   {
-//     throw net::RestError("Pack Id not specified", net::RestError::Type::NOT_FOUND);
+//     throw net::RestError("Pack Id not specified", net::RestErrorType::NOT_FOUND);
 //   }
 //   auto ret = db::get_resource_pack2(packId);
 //   return serialize(json::value_from(ret));
@@ -95,7 +95,7 @@ std::string rest::resource::upload_pack(net::HTTPHeaders const &headers, std::st
   }
   catch (std::runtime_error const &e)
   {
-    throw net::RestError("There was a problem parsing the Resource Pack: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
+    throw net::RestError("There was a problem parsing the Resource Pack: " + std::string(e.what()), net::RestErrorType::INVALID_DATA);
   }
 }
 
@@ -118,7 +118,7 @@ std::string rest::resource::upload_pack(net::HTTPHeaders const &headers, std::st
 //   }
 //   catch (std::runtime_error const &e)
 //   {
-//     throw net::RestError("There was a problem parsing the Resource Pack: " + std::string(e.what()), net::RestError::Type::INVALID_DATA);
+//     throw net::RestError("There was a problem parsing the Resource Pack: " + std::string(e.what()), net::RestErrorType::INVALID_DATA);
 //   }
 // }
 
