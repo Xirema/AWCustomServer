@@ -75,17 +75,6 @@ std::string rest::resource::upload_pack(net::HTTPHeaders const &headers, std::st
         data.begin(), 
         [](char c){ return static_cast<uint8_t>(c); }
       );
-      for(int i = 0; i < 16; i++) {
-        for(int j = 0; j < 16; j++) {
-          size_t index = j + i * 16;
-          if(index < data.size()) {
-            std::print("{:02x} ", data.at(index));
-          } else {
-            std::print("-- ");
-          }
-        }
-        std::println("");
-      }
       auto ret = db::upload_pack2(data);
       if(ret) {
         return "Success";

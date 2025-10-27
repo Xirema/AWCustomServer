@@ -11,6 +11,8 @@
 #include <iostream>
 #include <mutex>
 #include <variant>
+#include<print>
+#include<format>
 
 namespace net {
 namespace networking = boost::asio;
@@ -42,7 +44,7 @@ void loadServerCertificate(ssl::context &ctx, SSLCert const &sslCert) {
 namespace {
 void workFunc(std::atomic_bool &shouldStop, networking::io_context &ioContext) {
   if constexpr (DEBUGGING) {
-    std::cout << "DEBUG: workFunc()" << std::endl;
+    std::println("DEBUG: workFunc()");
   }
   while (!shouldStop) {
     try {
@@ -51,7 +53,7 @@ void workFunc(std::atomic_bool &shouldStop, networking::io_context &ioContext) {
       try {
         std::rethrow_exception(std::current_exception());
       } catch (std::exception const &e) {
-        std::cerr << "EXCEPTION THROWN: " << e.what() << std::endl;
+        std::println(std::cerr, "EXCEPTION THROWN: {}", e.what());
       }
     }
   }
@@ -75,8 +77,7 @@ class RestServerImpl {
    protected:
     friend RestServerImpl;
     RestServerImpl *parent;
-    // beast::tcp_stream stream;
-    std::variant<beast::tcp_stream, beast::ssl_stream<beast::tcp_stream>> stream_v;
+    std::variant<beast::tcp_stream, ssl::stream<beast::tcp_stream>> stream_v;
     beast::flat_buffer buffer;
     using string_request = http::request<http::string_body>;
     using string_response = http::response<http::string_body>;
@@ -103,7 +104,7 @@ class RestServerImpl {
                 ptr->handle_handshake({});
               });
         }
-        void operator()(beast::ssl_stream<beast::tcp_stream> &stream) const {
+        void operator()(ssl::stream<beast::tcp_stream> &stream) const {
           beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(30));
           stream.async_handshake(
               ssl::stream_base::server,
@@ -119,7 +120,7 @@ class RestServerImpl {
 
     void handle_handshake(beast::error_code ec) {
       if (ec) {
-        std::cerr << "Problem performing handshake: " << ec.what() << std::endl;
+        std::println(std::cerr, "Problem performing handshake: {}", ec.what());
       }
 
       do_read();
@@ -137,7 +138,7 @@ class RestServerImpl {
             [ptr = shared_from_this(), parser = parser_ptr](beast::error_code ec, size_t bytes_transferred) {
               ptr->handle_read(*parser, ec, bytes_transferred);
             });
-      } else if (auto ptr = std::get_if<beast::ssl_stream<beast::tcp_stream>>(&stream_v)) {
+      } else if (auto ptr = std::get_if<ssl::stream<beast::tcp_stream>>(&stream_v)) {
         http::async_read(
             *ptr,
             buffer,
@@ -151,7 +152,7 @@ class RestServerImpl {
     void do_close() {
       if (auto ptr = std::get_if<beast::tcp_stream>(&stream_v)) {
         ptr->socket().shutdown(tcp::socket::shutdown_send);
-      } else if (auto ptr = std::get_if<beast::ssl_stream<beast::tcp_stream>>(&stream_v)) {
+      } else if (auto ptr = std::get_if<ssl::stream<beast::tcp_stream>>(&stream_v)) {
         beast::get_lowest_layer(*ptr).socket().shutdown(tcp::socket::shutdown_send);
       }
     }
@@ -168,7 +169,7 @@ class RestServerImpl {
         return;
       }
       if (ec) {
-        std::cerr << "Problem reading from Socket: " << ec.what() << std::endl;
+        std::println(std::cerr, "Problem reading from Socket: {}", ec.what());
         return;
       }
       handle_request(request_parser.get());
@@ -176,7 +177,9 @@ class RestServerImpl {
 
     void handle_request(string_request request) {
       if (printRequests) {
-        std::cout << request << std::endl;
+        std::stringstream ss;
+        ss << request;
+        std::println("{}", ss.str());
       }
       // Returns a bad request response
       auto const bad_request =
@@ -296,7 +299,7 @@ class RestServerImpl {
             [ptr = shared_from_this(), res = response_ptr](beast::error_code ec, size_t bytes_transferred) {
               ptr->handle_send(res->need_eof(), ec, bytes_transferred);
             });
-      } else if (auto ptr = std::get_if<beast::ssl_stream<beast::tcp_stream>>(&stream_v)) {
+      } else if (auto ptr = std::get_if<ssl::stream<beast::tcp_stream>>(&stream_v)) {
         http::async_write(
             *ptr,
             *response_ptr,
@@ -309,10 +312,10 @@ class RestServerImpl {
     void handle_send(bool close, beast::error_code ec, size_t bytes_transferred) {
       if constexpr (DEBUGGING) {
         auto duration = std::chrono::steady_clock::now() - start;
-        std::cout << "Duration of request '" << currentEndpoint << "': " << duration << std::endl;
+        std::println("Duration of request '{}': {}", currentEndpoint, duration);
       }
       if (ec) {
-        std::cerr << "Problem writing to Socket: " << ec.what() << std::endl;
+        std::println(std::cerr, "Problem writing to Socket: {}", ec.what());
         return;
       }
       if (close) {
@@ -327,9 +330,9 @@ class RestServerImpl {
         tcp::socket socket,
         ssl::context &context,
         bool useSsl) : parent(parent),
-                       stream_v([&socket, &context, useSsl]() -> std::variant<beast::tcp_stream, beast::ssl_stream<beast::tcp_stream>> {
+                       stream_v([&socket, &context, useSsl]() -> std::variant<beast::tcp_stream, ssl::stream<beast::tcp_stream>> {
 	    if (useSsl) {
-	      return beast::ssl_stream<beast::tcp_stream>(std::move(socket), context);
+	      return ssl::stream<beast::tcp_stream>(std::move(socket), context);
 	    }
 	    else {
 	      return beast::tcp_stream(std::move(socket));
@@ -353,7 +356,7 @@ class RestServerImpl {
 
   void do_accept() {
     if constexpr (DEBUGGING) {
-      std::cout << "DEBUG: do_accept();" << std::endl;
+      std::println("DEBUG: do_accept();");
     }
     acceptor.async_accept(
         networking::make_strand(ioContext),
@@ -361,16 +364,16 @@ class RestServerImpl {
           handle_accept(ec, std::move(socket));
         });
     if constexpr (DEBUGGING) {
-      std::cout << "DEBUG: do_accept()_end" << std::endl;
+      std::println("DEBUG: do_accept()_end;");
     }
   }
 
   void handle_accept(beast::error_code ec, tcp::socket socket) {
     if constexpr (DEBUGGING) {
-      std::cout << "DEBUG: Connection Accepted!" << std::endl;
+      std::println("DEBUG: Connection Accepted!");
     }
     if (ec) {
-      std::cerr << "Problem Accepting Connection: " << ec.what() << std::endl;
+      std::println(std::cerr, "Problem Accepting Connection: {}", ec.what());
       return;
     }
     auto session = std::make_shared<RestServerSession>(this, std::move(socket), sslContext, sslCert ? true : false);
@@ -397,7 +400,7 @@ class RestServerImpl {
     // Does 1024 make sense as an upper limit? IDK lol
     maxThreadCount = maxThreadCount <= 1'024 ? maxThreadCount : 1'024;
     if constexpr (DEBUGGING) {
-      std::cout << "DEBUG: Num of Threads: " << maxThreadCount << std::endl;
+      std::println("DEBUG: Num of Threads: {}", maxThreadCount);
     }
     for (uint32_t i = 0; i < maxThreadCount; i++) {
       threads.emplace_back([this] { workFunc(shouldStop, ioContext); });
@@ -428,7 +431,7 @@ void RestServer::start(HTTPFunctionMap functions) {
   impl->functions = std::move(functions);
   impl->do_accept();
   if constexpr (DEBUGGING) {
-    std::cout << "DEBUG: Now Accepting Connections!" << std::endl;
+    std::println("DEBUG: NOw Accepting Connections!");
   }
 }
 
