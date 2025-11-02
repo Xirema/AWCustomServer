@@ -3,6 +3,7 @@
 
 #include <boost/mysql.hpp>
 #include <optional>
+#include<iostream>
 
 namespace sqlutil {
 namespace mysql = boost::mysql;
@@ -89,6 +90,36 @@ std::string inline to_string(mysql::field_kind kind) {
   return ss.str();
 }
 
+template<typename T>
+void emplaceField(ParameterPack & pack, T && t) {
+  pack.emplace_back(t);
+}
+
+template<typename T>
+void emplaceField(ParameterPack & pack, std::optional<T> const& t) {
+  if (!t) {
+    pack.emplace_back(nullptr);
+  } else {
+    pack.emplace_back(*t);
+  }
+}
+
+template<typename T>
+void emplaceField(ParameterPack & pack, std::optional<T> & t) {
+  if (!t) {
+    pack.emplace_back(nullptr);
+  } else {
+    pack.emplace_back(*t);
+  }
+}
+
+template<typename ... Types>
+ParameterPack toParameterPack(Types&& ... values) {
+  ParameterPack pack;
+  (emplaceField(pack, std::forward<Types>(values)), ...);
+  return pack;
+}
+
 // template<typename Range>
 // requires std::is_same_v<std::ranges::range_value_t<Range>, db::Column>
 // std::string createInsertColumns(Range && columns) {
@@ -102,4 +133,5 @@ std::pair<std::string, ParameterPack> createInsertValues(std::vector<ParameterPa
 std::string columnCreateString(db::Column const& column);
 std::string createColumns(std::vector<db::Column>& columns);
 db::DBErrorCode createTable(sqlutil::Session& session, std::vector<db::Column>& columns, std::string_view schema, std::string_view table);
+void printError(mysql::error_with_diagnostics const& err, std::ostream& out = std::cerr);
 }  // namespace sqlutil

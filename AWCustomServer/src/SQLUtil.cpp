@@ -101,4 +101,11 @@ db::DBErrorCode createTable(sqlutil::Session& session, std::vector<db::Column>& 
   session.connection.execute(std::format(db::SQL_CREATE_TABLE, schema, table, columnDefines), results);
   return db::DBErrorCode::NONE;
 }
+
+
+void printError(mysql::error_with_diagnostics const& err, std::ostream& out) {
+  std::println(out, "MySQL Error: {} - {}", err.code().value(), err.what());
+  std::println(out, "Client Message: {}", err.get_diagnostics().client_message());
+  std::println(out, "Server Message: {}", err.get_diagnostics().server_message());
+}
 }  // namespace sqlutil
