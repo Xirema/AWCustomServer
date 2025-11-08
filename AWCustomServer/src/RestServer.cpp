@@ -312,7 +312,7 @@ class RestServerImpl {
     void handle_send(bool close, beast::error_code ec, size_t bytes_transferred) {
       if constexpr (DEBUGGING) {
         auto duration = std::chrono::steady_clock::now() - start;
-        std::println("Duration of request '{}': {}", currentEndpoint, duration);
+        std::println("Duration of request '{}': {}", currentEndpoint, std::chrono::duration_cast<std::chrono::milliseconds>(duration));
       }
       if (ec) {
         std::println(std::cerr, "Problem writing to Socket: {}", ec.what());

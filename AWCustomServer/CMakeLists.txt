@@ -13,7 +13,7 @@ add_library(Core OBJECT
   src/StateLookup.cpp src/db/Data.cpp src/GameManager.cpp
   src/db/State.cpp src/Calculator.cpp src/ZipFunctions.cpp
   src/db/Resource.cpp src/db/General.cpp src/db/DBTablesV0.0.1.cpp
-  src/Cli.cpp
+  src/Cli.cpp src/db/MapsAndGames.cpp
 )
 add_executable(Server $<TARGET_OBJECTS:Core> src/Main.cpp)
 target_link_libraries(Server ${Boost_LIBRARIES} ssl crypto dl zip)

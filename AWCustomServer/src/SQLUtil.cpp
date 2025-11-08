@@ -43,15 +43,6 @@ void Transaction::commit() {
 }
 
 using namespace std::string_literals;
-std::string createInsertColumns(std::vector<std::string_view> const& columns) {
-  return columns | std::views::transform([](std::string_view const& column) { return std::format("`{}`", column); }) | std::views::join_with(","s) |
-         std::ranges::to<std::string>();
-}
-
-std::string createInsertColumns(std::vector<db::Column> const& columns) {
-  return createInsertColumns(columns | std::views::transform([](db::Column const& column) { return column.columnName; }) |
-                             std::ranges::to<std::vector<std::string_view>>());
-}
 
 using ParameterPack = std::vector<mysql::field>;
 
@@ -77,31 +68,6 @@ std::string columnCreateString(db::Column const& column) {
   return std::format(db::SQL_CREATE_COLUMN, column.columnName, column.columnType, column.nullable ? "" : "not",
                      column.autoIncrement ? "auto_increment" : "");
 }
-
-std::string createColumns(std::vector<db::Column>& columns) {
-  db::Column* primaryKey = nullptr;
-  for (auto& column : columns) {
-    if (primaryKey) {
-      column.autoIncrement = false;
-    }
-    if (column.autoIncrement) {
-      primaryKey = &column;
-    }
-  }
-  std::string retString = columns | std::views::transform(columnCreateString) | std::views::join_with(", "s) | std::ranges::to<std::string>();
-  if (primaryKey) {
-    retString += ", "s + std::format(db::SQL_DEFINE_PRIMARY_KEY, primaryKey->columnName);
-  }
-  return retString;
-}
-
-db::DBErrorCode createTable(sqlutil::Session& session, std::vector<db::Column>& columns, std::string_view schema, std::string_view table) {
-  mysql::results results;
-  std::string columnDefines = createColumns(columns);
-  session.connection.execute(std::format(db::SQL_CREATE_TABLE, schema, table, columnDefines), results);
-  return db::DBErrorCode::NONE;
-}
-
 
 void printError(mysql::error_with_diagnostics const& err, std::ostream& out) {
   std::println(out, "MySQL Error: {} - {}", err.code().value(), err.what());

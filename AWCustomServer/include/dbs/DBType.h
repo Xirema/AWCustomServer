@@ -40,6 +40,7 @@ constexpr std::string_view SQL_CREATE_TABLE = "create table `{}`.`{}` ({})";
 constexpr std::string_view SQL_CREATE_COLUMN = "`{}` {} {} null {}";
 constexpr std::string_view SQL_DEFINE_PRIMARY_KEY = "primary key (`{}`)";
 constexpr std::string_view SQL_INSERT = "insert into `{}`.`{}` ({}) values {}";
+constexpr std::string_view SQL_SELECT = "select {} from `{}`.`{}` {} {}";
 
 constexpr std::string_view SQL_INT = "int";
 constexpr std::string_view SQL_SMALLSTRING = "varchar(45)";
