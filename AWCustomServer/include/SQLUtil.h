@@ -176,7 +176,7 @@ std::pair<mysql::statement, ParameterPack> createInsertStatement(sqlutil::Sessio
                                                                  std::string_view tableName) {
   auto insertColumns = createInsertColumns(columns);
   auto parameters = values | std::views::transform(tm);
-  auto [valuesString, parametersFlattened] = createInsertValues(parameters | std::ranges::to<std::vector<ParameterPack>>());
+  auto [valuesString, parametersFlattened] = createInsertValues(parameters | std::ranges::to<std::vector>());
   auto statement = session.connection.prepare_statement(std::format(db::SQL_INSERT, databaseName, tableName, insertColumns, valuesString));
   return std::make_pair(statement, parametersFlattened);
 }

@@ -1,4 +1,5 @@
 #include <DBFunctions.h>
+#include <GameManager.h>
 #include <SQLUtil.h>
 #include <dbs/DBTablesCurrent.h>
 
@@ -11,6 +12,7 @@ void createGame(std::optional<int64_t> gameId, int64_t mapId, std::map<std::stri
                 sTypes::SettingsState const& settings) {
   sqlutil::Session session;
   sqlutil::Transaction transaction{session};
+  auto& gameManager = game::GameManager::instance();
   constexpr std::string_view DELETE_STATEMENT = "delete from `{}`.`{}` where `{}` = ?";
   try {
     if (gameId) {
@@ -36,7 +38,7 @@ void createGame(std::optional<int64_t> gameId, int64_t mapId, std::map<std::stri
       game.variant = settings.variant.begin()->first;
     } else {
       std::minstd_rand engine{std::random_device{}()};
-      auto weights = settings.variant | std::views::values | std::ranges::to<std::vector<int64_t>>();
+      auto weights = settings.variant | std::views::values | std::ranges::to<std::vector>();
       std::discrete_distribution<int64_t> variantDistribution{weights.begin(), weights.end()};
       auto variantChoice = variantDistribution(engine);
       auto variantIt = settings.variant.begin();
@@ -64,7 +66,7 @@ void createGame(std::optional<int64_t> gameId, int64_t mapId, std::map<std::stri
                                       player.totalPowerUses, player.unitFacing, player.playerType, player.team, player.powerActive,
                                       player.powerActiveDay, player.incomeMultiplier, player.coMeterMultiplier);
     };
-    std::map<std::string_view, uint64_t> playerSlotToIds;
+    std::map<std::string_view, int64_t> playerSlotToIds;
     for (auto&& [playerSlot, playerState] : users) {
       auto playerId =
           sqlutil::doInsert(session, std::views::single(playerState), playerMapper, dbcurrent::TABLE_STATE_PLAYER_COLUMNS | std::views::drop(1),
@@ -80,7 +82,7 @@ void createGame(std::optional<int64_t> gameId, int64_t mapId, std::map<std::stri
       }
       return it->second;
     };
-    game.playerOrder = map.playerSlots | std::views::transform(playerSlotIdMapper) | std::ranges::to<std::vector<int64_t>>();
+    game.playerOrder = map.playerSlots | std::views::transform(playerSlotIdMapper) | std::ranges::to<std::vector>();
 
     auto playerOrderMapper = [newGameId](auto&& tuple) {
       auto const& [order, playerId] = tuple;
@@ -89,30 +91,43 @@ void createGame(std::optional<int64_t> gameId, int64_t mapId, std::map<std::stri
     sqlutil::doInsert(session, game.playerOrder | std::views::enumerate, playerOrderMapper,
                       dbcurrent::TABLE_STATE_GAME_PLAYERORDER_COLUMNS | std::views::drop(1), dbcurrent::DB_STATE,
                       dbcurrent::TABLE_STATE_GAME_PLAYERORDER);
-    auto initialUnitMapper = [&playerSlotToIds](dTypes::InitialUnit const& initialUnit) {
+    auto modPtr = gameManager.getMod(settings.modId);
+    auto const& mod = modPtr->object;
+
+    auto initialUnitMapper = [&playerSlotToIds, &mod](dTypes::InitialUnit const& initialUnit) {
       sTypes::UnitState ret;
+      auto unitTypeIt =
+          std::ranges::find_if(mod.units, [&mod, &initialUnit](dTypes::UnitType const& unitType) { return unitType.name == initialUnit.unitName; });
+      if (unitTypeIt == mod.units.end()) {
+        throw std::runtime_error(std::format("Unable to find Unit named '{}' in mod", initialUnit.unitName));
+      }
+      auto const& unitType = *unitTypeIt;
       ret.name = initialUnit.unitName;
       ret.x = initialUnit.x;
       ret.y = initialUnit.y;
-      // TODO: We need to do a lookup on the mod and figure out the correct values!
-      ret.ammo = initialUnit.startingAmmo.value_or(9);
-      ret.fuel = initialUnit.startingFuel.value_or(99);
+      ret.ammo = initialUnit.startingAmmo.value_or(unitType.maxAmmo);
+      ret.fuel = initialUnit.startingFuel.value_or(unitType.maxFuel);
       ret.active = true;
       ret.stunned = initialUnit.startingStunned;
       if (initialUnit.playerSlot) {
         ret.owner = playerSlotToIds.at(*initialUnit.playerSlot);
       }
-      ret.hitPoints = initialUnit.startingHitPoints.value_or(100);
+      ret.hitPoints = initialUnit.startingHitPoints.value_or(unitType.hitPoints.value_or(100));
       ret.stealthed = initialUnit.startingStealthed;
       if (initialUnit.startingLuck) {
         auto luck = *initialUnit.startingLuck;
         ret.currentGoodLuck = luck > 0 ? luck : 0;
         ret.currentBadLuck = luck < 0 ? -luck : 0;
+      } else {
+        std::minstd_rand engine{std::random_device{}()};
+        std::uniform_real_distribution<double> luckDistribution{0., 1.};
+        ret.currentGoodLuck = luckDistribution(engine);
+        ret.currentBadLuck = luckDistribution(engine);
       }
-      // else {
-      // TODO: generate luck values!
-      //}
       // TODO: Transporting!
+      // if (initialUnit.transportedBy) {
+      //   ret.transportedBy = initialUnit.transportedBy;
+      // }
       return ret;
     };
     auto units = map.initialUnits | std::views::transform(initialUnitMapper) | std::ranges::to<std::vector>();
@@ -120,10 +135,19 @@ void createGame(std::optional<int64_t> gameId, int64_t mapId, std::map<std::stri
       return sqlutil::toParameterPack(newGameId, unit.x, unit.y, unit.name, unit.ammo, unit.fuel, unit.active, unit.stunned, unit.owner,
                                       unit.hitPoints, unit.stealthed, unit.currentGoodLuck, unit.currentBadLuck, nullptr, nullptr);
     };
+    // for (auto const& unit : units) {
+
+    // }
     sqlutil::doInsert(session, units, unitMapper, dbcurrent::TABLE_STATE_UNIT_COLUMNS | std::views::drop(1), dbcurrent::DB_STATE,
                       dbcurrent::TABLE_STATE_UNIT);
-    auto initialTerrainMapper = [&playerSlotToIds](dTypes::InitialTerrain const& initialTerrain) {
+    auto initialTerrainMapper = [&playerSlotToIds, &mod](dTypes::InitialTerrain const& initialTerrain) {
       sTypes::TerrainState ret;
+      auto terrainTypeIt = std::ranges::find_if(
+          mod.terrains, [&mod, &initialTerrain](dTypes::TerrainType const& terrainType) { return terrainType.name == initialTerrain.terrainName; });
+      if (terrainTypeIt == mod.terrains.end()) {
+        throw std::runtime_error(std::format("Unable to find Terrain named '{}' in mod", initialTerrain.terrainName));
+      }
+      auto const& terrainType = *terrainTypeIt;
       ret.name = initialTerrain.terrainName;
       ret.x = initialTerrain.x;
       ret.y = initialTerrain.y;
@@ -133,8 +157,11 @@ void createGame(std::optional<int64_t> gameId, int64_t mapId, std::map<std::stri
         ret.owner = playerSlotToIds.at(initialTerrain.playerSlot.value());
       }
       // TODO: Initialize Activation Count!
-      // TODO: Check mod for initial Hit Points fallback!
-      ret.hitPoints = initialTerrain.startingHitPoints;
+      if (initialTerrain.startingHitPoints) {
+        ret.hitPoints = initialTerrain.startingHitPoints;
+      } else {
+        ret.hitPoints = terrainType.hitPoints;
+      }
       return ret;
     };
     auto terrains = map.initialTerrains | std::views::transform(initialTerrainMapper) | std::ranges::to<std::vector>();
@@ -145,9 +172,9 @@ void createGame(std::optional<int64_t> gameId, int64_t mapId, std::map<std::stri
     sqlutil::doInsert(session, terrains, terrainMapper, dbcurrent::TABLE_STATE_TERRAIN_COLUMNS | std::views::drop(1), dbcurrent::DB_STATE,
                       dbcurrent::TABLE_STATE_TERRAIN);
     auto settingsMapper = [newGameId](sTypes::SettingsState const& settings) {
-      return sqlutil::toParameterPack(newGameId, settings.startingFunds, settings.incomeMultiplier, settings.fogOfWar, settings.coPowers, settings.teams,
-                                      settings.modId, settings.coMeterSize, settings.coMeterMultiplier, settings.unitLimit, settings.captureLimit,
-                                      settings.dayLimit);
+      return sqlutil::toParameterPack(newGameId, settings.startingFunds, settings.incomeMultiplier, settings.fogOfWar, settings.coPowers,
+                                      settings.teams, settings.modId, settings.coMeterSize, settings.coMeterMultiplier, settings.unitLimit,
+                                      settings.captureLimit, settings.dayLimit);
     };
     sqlutil::doInsert(session, std::views::single(settings), settingsMapper, dbcurrent::TABLE_STATE_SETTINGS_COLUMNS | std::views::drop(1),
                       dbcurrent::DB_STATE, dbcurrent::TABLE_STATE_SETTINGS);
@@ -243,8 +270,8 @@ uint64_t uploadMap(dTypes::MapDefinition const& mapData) {
     mysql::results updateResults;
     session.connection.execute(updateExpired.bind(mapData.metadata.name, mapData.metadata.version), updateResults);
     auto mapDefinitionMapper = [](dTypes::MapDefinition const& mapData) {
-      return sqlutil::toParameterPack(mapData.metadata.name, mapData.metadata.version, nullptr, mapData.metadata.description, mapData.metadata.modName,
-                                      mapData.metadata.modVersion);
+      return sqlutil::toParameterPack(mapData.metadata.name, mapData.metadata.version, nullptr, mapData.metadata.description,
+                                      mapData.metadata.modName, mapData.metadata.modVersion);
     };
     auto results = sqlutil::doInsert(session, std::views::single(mapData), mapDefinitionMapper,
                                      dbcurrent::TABLE_DATA_MAP_DEFINITION_COLUMNS | std::views::drop(1), dbcurrent::DB_DATA,

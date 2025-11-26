@@ -48,7 +48,7 @@ int main() {
                                               .commanderName = "kindle",
                                               .funds = 0,
                                               .powerCharge = 0,
-                                              .armyColor = "pl",
+                                              .armyColor = "pc",
                                               .alive = true,
                                               .totalPowerUses = 0,
                                               .unitFacing = 1,
